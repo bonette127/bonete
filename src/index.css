@@ -19,3 +19,93 @@
 code, pre, .font-mono {
   font-family: 'JetBrains Mono', monospace;
 }
+
+/* ==========================================================================
+   Print-Friendly Media Query for Professional CV / Portfolio Documentation
+   ========================================================================== */
+@media print {
+  /* Reset Background & Text for High-Contrast Crisp Printing */
+  html, body, .dark body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Hide Non-Essential Interactive UI Elements & Overlays */
+  header,
+  nav,
+  aside,
+  footer,
+  canvas,
+  button,
+  form,
+  input,
+  textarea,
+  select,
+  .fixed,
+  [role="dialog"],
+  [role="progressbar"],
+  [aria-label*="progress"],
+  [aria-label*="banner"],
+  [title="Dismiss reminder"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Unbox and Flatten Layout Containers */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  section {
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Prevent Cards and Key Milestones from Splitting Across Pages */
+  article,
+  .rounded-xl,
+  .rounded-2xl,
+  .border,
+  li {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove Drop Shadows and Fancy Gradients for Clean Ink Usage */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+  }
+
+  /* Ensure Links Show as Plain Text Without Distracting Underlines */
+  a {
+    text-decoration: none !important;
+    color: #047857 !important;
+  }
+
+  /* Ensure Images Print Cleanly */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Print Header Watermark */
+  body::before {
+    content: "IBYOYAKOZE Bonette — Software Engineering Candidate (L5 SOD) Portfolio & Academic Records";
+    display: block;
+    font-size: 8pt;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Send, MessageSquare, ThumbsUp, Filter, Heart, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Send, MessageSquare, ThumbsUp, Filter, Heart, Sparkles, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { INITIAL_MESSAGES, VisitorMessage } from '../data/portfolioData';
+import { validateEmailFormat } from './GuestbookMessageModal';
 
 interface MessageBoardSectionProps {
   initialType?: VisitorMessage['type'];
@@ -31,6 +32,10 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
   const [content, setContent] = useState('');
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
 
+  const [nameTouched, setNameTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [contentTouched, setContentTouched] = useState(false);
+
   useEffect(() => {
     try {
       localStorage.setItem('bonette_portfolio_messages', JSON.stringify(messages));
@@ -40,16 +45,41 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
     onMessageCountChange?.(messages.length);
   }, [messages, onMessageCountChange]);
 
+  const NAME_MIN = 2;
+  const NAME_MAX = 50;
+  const CONTENT_MIN = 10;
+  const CONTENT_MAX = 600;
+
+  const trimmedName = name.trim();
+  const isNameEmpty = trimmedName.length === 0;
+  const isNameTooShort = !isNameEmpty && trimmedName.length < NAME_MIN;
+  const isNameValid = trimmedName.length >= NAME_MIN && trimmedName.length <= NAME_MAX;
+
+  const emailValidation = validateEmailFormat(email);
+  const isEmailEntered = email.trim().length > 0;
+  const isEmailValid = emailValidation.isValid;
+
+  const trimmedContent = content.trim();
+  const isContentEmpty = trimmedContent.length === 0;
+  const isContentTooShort = !isContentEmpty && trimmedContent.length < CONTENT_MIN;
+  const isContentValid = trimmedContent.length >= CONTENT_MIN && content.length <= CONTENT_MAX;
+
+  const isFormValid = isNameValid && isEmailValid && isContentValid;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !content.trim()) return;
+    setNameTouched(true);
+    setEmailTouched(true);
+    setContentTouched(true);
+
+    if (!isFormValid) return;
 
     const newMsg: VisitorMessage = {
       id: `msg-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim() || undefined,
+      name: trimmedName,
+      email: isEmailEntered ? email.trim() : undefined,
       type: msgType,
-      content: content.trim(),
+      content: trimmedContent,
       createdAt: 'Just now',
       likes: 1,
     };
@@ -58,6 +88,9 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
     setName('');
     setEmail('');
     setContent('');
+    setNameTouched(false);
+    setEmailTouched(false);
+    setContentTouched(false);
     setSubmittedSuccess(true);
     setTimeout(() => setSubmittedSuccess(false), 4000);
   };
@@ -73,6 +106,8 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
   const filteredMessages = activeFilter === 'All'
     ? messages
     : messages.filter((m) => m.type === activeFilter);
+
+  const contentProgressPercent = Math.min(100, Math.round((content.length / CONTENT_MAX) * 100));
 
   return (
     <section className="py-12 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -106,32 +141,113 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Your Full Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Sister Marie, or classmate Mugisha"
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Your Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <span
+                    className={`text-[11px] font-mono ${
+                      name.length >= NAME_MAX
+                        ? 'text-rose-500 font-bold'
+                        : nameTouched && !isNameValid
+                        ? 'text-amber-500'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                  >
+                    {name.length}/{NAME_MAX}
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    maxLength={NAME_MAX}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setNameTouched(true);
+                    }}
+                    onBlur={() => setNameTouched(true)}
+                    placeholder="e.g., Sister Marie, or classmate Mugisha"
+                    className={`w-full px-3 py-2 pr-8 text-sm bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white transition-colors focus:outline-hidden ${
+                      nameTouched && !isNameValid
+                        ? 'border-rose-400 dark:border-rose-600 focus:ring-2 focus:ring-rose-500/30'
+                        : isNameValid
+                        ? 'border-emerald-400 dark:border-emerald-600 focus:ring-2 focus:ring-emerald-500/30'
+                        : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/30'
+                    }`}
+                  />
+                  {isNameValid && (
+                    <div className="absolute right-2.5 top-2.5 text-emerald-600 dark:text-emerald-400 pointer-events-none">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  )}
+                  {nameTouched && !isNameValid && (
+                    <div className="absolute right-2.5 top-2.5 text-rose-500 pointer-events-none">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+                {nameTouched && isNameTooShort && (
+                  <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>Name must be at least {NAME_MIN} characters.</span>
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Your Email (Optional, kept private)
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Your Email <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Optional)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Kept private
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailTouched(true);
+                    }}
+                    onBlur={() => setEmailTouched(true)}
+                    placeholder="you@example.com"
+                    className={`w-full px-3 py-2 pr-8 text-sm bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white transition-colors focus:outline-hidden ${
+                      isEmailEntered && !isEmailValid
+                        ? 'border-rose-400 dark:border-rose-600 focus:ring-2 focus:ring-rose-500/30'
+                        : isEmailEntered && isEmailValid
+                        ? 'border-emerald-400 dark:border-emerald-600 focus:ring-2 focus:ring-emerald-500/30'
+                        : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/30'
+                    }`}
+                  />
+                  {isEmailEntered && isEmailValid && (
+                    <div className="absolute right-2.5 top-2.5 text-emerald-600 dark:text-emerald-400 pointer-events-none">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  )}
+                  {isEmailEntered && !isEmailValid && (
+                    <div className="absolute right-2.5 top-2.5 text-rose-500 pointer-events-none">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+                {isEmailEntered && !isEmailValid && (
+                  <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{emailValidation.error}</span>
+                  </p>
+                )}
+                {isEmailEntered && isEmailValid && (
+                  <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    <span>Valid email address — will not be displayed publicly.</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -141,7 +257,7 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
                 <select
                   value={msgType}
                   onChange={(e) => setMsgType(e.target.value as VisitorMessage['type'])}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
                 >
                   <option value="Message">Friendly Message</option>
                   <option value="Feedback">Feedback on Portfolio or Tutorials</option>
@@ -151,22 +267,78 @@ export const MessageBoardSection: React.FC<MessageBoardSectionProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Message or Feedback *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Message or Feedback <span className="text-rose-500">*</span>
+                  </label>
+                  <span
+                    className={`text-[11px] font-mono px-1.5 py-0.5 rounded-md ${
+                      content.length >= CONTENT_MAX
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold'
+                        : isContentValid
+                        ? 'text-emerald-700 dark:text-emerald-400 font-medium'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                  >
+                    {content.length}/{CONTENT_MAX}
+                  </span>
+                </div>
                 <textarea
                   required
                   rows={4}
+                  maxLength={CONTENT_MAX}
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    setContentTouched(true);
+                  }}
+                  onBlur={() => setContentTouched(true)}
                   placeholder="Write your note, feedback, song advice, or question for Bonette..."
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white transition-colors focus:outline-hidden resize-none ${
+                    contentTouched && !isContentValid
+                      ? 'border-rose-400 dark:border-rose-600 focus:ring-2 focus:ring-rose-500/30'
+                      : isContentValid
+                      ? 'border-emerald-400 dark:border-emerald-600 focus:ring-2 focus:ring-emerald-500/30'
+                      : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/30'
+                  }`}
                 />
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-1 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-150 ${
+                      content.length >= CONTENT_MAX
+                        ? 'bg-rose-500'
+                        : content.length >= CONTENT_MAX * 0.85
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-600 dark:bg-emerald-500'
+                    }`}
+                    style={{ width: `${contentProgressPercent}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[11px]">
+                  {contentTouched && isContentEmpty ? (
+                    <span className="text-rose-600 dark:text-rose-400">Please enter your message.</span>
+                  ) : isContentTooShort ? (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      Need {CONTENT_MIN - trimmedContent.length} more char{CONTENT_MIN - trimmedContent.length === 1 ? '' : 's'} (min {CONTENT_MIN}).
+                    </span>
+                  ) : isContentValid ? (
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Clean message ({CONTENT_MAX - content.length} chars remaining)
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500">Min {CONTENT_MIN} · Max {CONTENT_MAX} chars</span>
+                  )}
+                </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors shadow-sm cursor-pointer"
+                disabled={!isFormValid}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors shadow-sm ${
+                  isFormValid
+                    ? 'bg-slate-900 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 cursor-pointer'
+                    : 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed opacity-75'
+                }`}
               >
                 <Send className="w-4 h-4" />
                 Post Message to Board

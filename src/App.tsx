@@ -18,6 +18,7 @@ import { GitHubSocialSyncSection } from './components/GitHubSocialSyncSection';
 import { DatabaseStudioSection } from './components/DatabaseStudioSection';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { GuestbookMessageModal } from './components/GuestbookMessageModal';
 import { Footer } from './components/Footer';
 import { ReadingProgressBar } from './components/ReadingProgressBar';
 import { BirthdayAnniversaryBanner } from './components/BirthdayAnniversaryBanner';
@@ -117,13 +118,10 @@ export default function App() {
   // URL Invite Welcome Banner State
   const [inviteWelcomeName, setInviteWelcomeName] = useState<string | null>(null);
 
-  // Modal Form State for Guestbook
+  // Modal State for Guestbook
   const [isMessageModalOpen, setIsMessageModalOpen] = useState<boolean>(false);
   const [modalType, setModalType] = useState<VisitorMessage['type']>('Message');
-  const [modalName, setModalName] = useState('');
-  const [modalEmail, setModalEmail] = useState('');
   const [modalContent, setModalContent] = useState('');
-  const [modalSuccess, setModalSuccess] = useState(false);
 
   // References for scrolling
   const aboutRef = useRef<HTMLDivElement>(null);
@@ -375,24 +373,27 @@ export default function App() {
     setFamilyChat([...familyChat, newMsg]);
   };
 
-  const handleOpenMessageModal = (type: VisitorMessage['type'] = 'Message') => {
+  const handleOpenMessageModal = (type: VisitorMessage['type'] = 'Message', contentPrefill = '') => {
     setModalType(type);
+    setModalContent(contentPrefill);
     setIsMessageModalOpen(true);
   };
 
-  const handleModalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!modalName.trim() || !modalContent.trim()) return;
-
+  const handleModalSubmit = (newMsgData: {
+    name: string;
+    email?: string;
+    type: VisitorMessage['type'];
+    content: string;
+  }) => {
     try {
       const existing = localStorage.getItem('bonette_portfolio_messages');
       const messagesList = existing ? JSON.parse(existing) : [];
       const newEntry: VisitorMessage = {
         id: `msg-${Date.now()}`,
-        name: modalName.trim(),
-        email: modalEmail.trim() || undefined,
-        type: modalType,
-        content: modalContent.trim(),
+        name: newMsgData.name,
+        email: newMsgData.email,
+        type: newMsgData.type,
+        content: newMsgData.content,
         createdAt: 'Just now',
         likes: 1,
       };
@@ -400,15 +401,9 @@ export default function App() {
       localStorage.setItem('bonette_portfolio_messages', JSON.stringify(updated));
     } catch {}
 
-    setModalSuccess(true);
     setTimeout(() => {
-      setModalSuccess(false);
-      setIsMessageModalOpen(false);
-      setModalName('');
-      setModalEmail('');
-      setModalContent('');
       handleSelectTab('messages');
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -590,6 +585,7 @@ export default function App() {
         onAddArticle={handleAddArticle}
         onRemoveArticle={handleRemoveArticle}
         onAddPhoto={handleAddPhoto}
+        familyChat={familyChat}
         onSendFamilyChat={(msg) => handleSendFamilyChat(msg, 'IBYOYAKOZE Bonette (Admin)', 'byoyakozebonette@protonmail.com', 'Admin / Student Developer', true)}
         agendaEntries={agendaEntries}
         onAddAgendaEntry={handleAddAgendaEntry}
@@ -597,115 +593,17 @@ export default function App() {
         initialTab={adminInitialTab}
       />
 
-      {/* Floating Send Message Modal for Visitors */}
-      {isMessageModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setIsMessageModalOpen(false)}
-        >
-          <div
-            className="relative max-w-lg w-full bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Send a Message to {BONETTE_PROFILE.name}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Leave words of encouragement, gospel song ideas, or birthday wishes
-                </p>
-              </div>
-              <button
-                onClick={() => setIsMessageModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg cursor-pointer transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {modalSuccess ? (
-              <div className="py-8 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                  Message Posted Successfully!
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Thank you for your warmth and feedback. Bonette appreciates your message!
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleModalSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Your Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={modalName}
-                    onChange={(e) => setModalName(e.target.value)}
-                    placeholder="e.g. Samuel Mugenzi, Keza..."
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address (Optional)
-                  </label>
-                  <input
-                    type="email"
-                    value={modalEmail}
-                    onChange={(e) => setModalEmail(e.target.value)}
-                    placeholder="your.email@example.com"
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Message Type
-                  </label>
-                  <select
-                    value={modalType}
-                    onChange={(e) => setModalType(e.target.value as VisitorMessage['type'])}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                  >
-                    <option value="Message">Message / Encouragement</option>
-                    <option value="Feedback">Feedback on Portfolio</option>
-                    <option value="Gospel Song Suggestion">Gospel Song Suggestion</option>
-                    <option value="Tech Collaboration">Tech Collaboration / L5 SOD Project</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Message Content *
-                  </label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={modalContent}
-                    onChange={(e) => setModalContent(e.target.value)}
-                    placeholder="Write your note here..."
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-emerald-600"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-lg transition-colors shadow-sm cursor-pointer"
-                >
-                  Post Message to Guestbook
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Guestbook & Message Modal with Real-time Validation for Email and Character Limits */}
+      <GuestbookMessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => {
+          setIsMessageModalOpen(false);
+          setModalContent('');
+        }}
+        initialType={modalType}
+        initialContent={modalContent}
+        onSubmit={handleModalSubmit}
+      />
     </div>
   );
 }

@@ -113,11 +113,13 @@ export interface VisitorMessage {
 export interface FamilyMemberItem {
   id: string;
   name: string;
-  relationship: 'Brother' | 'Sister' | 'Father' | 'Mother' | 'Cousin' | 'Relative';
+  relationship: 'Brother' | 'Sister' | 'Father' | 'Mother' | 'Cousin' | 'Relative' | 'Community Member';
   email: string;
+  username?: string;
+  loginPasscode?: string;
   phone?: string;
   joinedAt: string;
-  status: 'Active' | 'Invited';
+  status: 'Active' | 'Invited' | 'Suspended';
   avatar?: string;
   inviteToken?: string;
 }
@@ -157,6 +159,25 @@ export interface FamilyChatMessage {
   timestamp: string;
   isAnnouncement?: boolean;
   avatarColor?: string;
+  replyTo?: {
+    id: string;
+    senderName: string;
+    contentSnippet: string;
+    senderRole?: string;
+  };
+  reactions?: Record<string, number>;
+  channel?: 'general' | 'gospel' | 'tech';
+}
+
+export interface PersonalShowcaseConfig {
+  photoUrl: string;
+  title: string;
+  subtitle: string;
+  bioSummary: string;
+  location: string;
+  birthDateFormatted: string;
+  motto: string;
+  verifiedStatus: string;
 }
 
 export const BONETTE_PROFILE: PortfolioProfile = {
@@ -429,6 +450,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Mugisha',
     relationship: 'Brother',
     email: 'mugisha.ibyoyakoze@gmail.com',
+    username: 'mugisha',
+    loginPasscode: 'Mugisha#2026',
     phone: '+250 788 112 341',
     joinedAt: 'Jan 2026',
     status: 'Active',
@@ -440,6 +463,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Cedric',
     relationship: 'Brother',
     email: 'cedric.ibyoyakoze@gmail.com',
+    username: 'cedric',
+    loginPasscode: 'Cedric#2026',
     phone: '+250 788 112 342',
     joinedAt: 'Jan 2026',
     status: 'Active',
@@ -451,6 +476,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Ruth',
     relationship: 'Sister',
     email: 'ruth.ibyoyakoze@gmail.com',
+    username: 'ruth',
+    loginPasscode: 'Ruth#2026',
     phone: '+250 788 112 343',
     joinedAt: 'Jan 2026',
     status: 'Active',
@@ -462,6 +489,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Reponce',
     relationship: 'Sister',
     email: 'reponce.ibyoyakoze@gmail.com',
+    username: 'reponce',
+    loginPasscode: 'Reponce#2026',
     phone: '+250 788 112 344',
     joinedAt: 'Feb 2026',
     status: 'Active',
@@ -473,6 +502,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Beryse',
     relationship: 'Sister',
     email: 'beryse.ibyoyakoze@gmail.com',
+    username: 'beryse',
+    loginPasscode: 'Beryse#2026',
     phone: '+250 788 112 345',
     joinedAt: 'Feb 2026',
     status: 'Active',
@@ -484,6 +515,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Papa (Father)',
     relationship: 'Father',
     email: 'father.gatsibo@gmail.com',
+    username: 'papa',
+    loginPasscode: 'Papa#2026',
     joinedAt: 'Dec 2025',
     status: 'Active',
     avatar: 'P',
@@ -494,6 +527,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     name: 'Mama (Mother)',
     relationship: 'Mother',
     email: 'mother.gatsibo@gmail.com',
+    username: 'mama',
+    loginPasscode: 'Mama#2026',
     joinedAt: 'Dec 2025',
     status: 'Active',
     avatar: 'M',
@@ -588,54 +623,19 @@ Every time I look out at the landscape of Gatsibo, I am reminded that great inno
   }
 ];
 
-export const INITIAL_FAMILY_CHAT: FamilyChatMessage[] = [
-  {
-    id: 'chat-1',
-    senderName: 'IBYOYAKOZE Bonette',
-    senderEmail: 'byoyakozebonette@protonmail.com',
-    senderRole: 'Admin / Student Developer',
-    content: 'Muraho family! Welcome to our private family chat room on my portfolio. I added this so we can share updates, prayer points, and school highlights together!',
-    timestamp: 'Today, 08:30 AM',
-    isAnnouncement: true,
-    avatarColor: 'bg-emerald-600'
-  },
-  {
-    id: 'chat-2',
-    senderName: 'Mugisha',
-    senderEmail: 'mugisha.ibyoyakoze@gmail.com',
-    senderRole: 'Brother',
-    content: 'Muraho Bonette! Wow, this is impressive! Your coding skills at Lycée Saint Alexandre Sauli are truly advancing rapidly.',
-    timestamp: 'Today, 08:42 AM',
-    avatarColor: 'bg-blue-600'
-  },
-  {
-    id: 'chat-3',
-    senderName: 'Ruth',
-    senderEmail: 'ruth.ibyoyakoze@gmail.com',
-    senderRole: 'Sister',
-    content: 'Praise God sister! We are praying for your upcoming exams in L5 SOD. Also loved the gospel singing photos you posted!',
-    timestamp: 'Today, 09:15 AM',
-    avatarColor: 'bg-amber-600'
-  },
-  {
-    id: 'chat-4',
-    senderName: 'Cedric',
-    senderEmail: 'cedric.ibyoyakoze@gmail.com',
-    senderRole: 'Brother',
-    content: 'Can you teach me how you connected the CockroachDB and SQLite databases on the site? It looks super fast.',
-    timestamp: 'Today, 09:40 AM',
-    avatarColor: 'bg-indigo-600'
-  },
-  {
-    id: 'chat-5',
-    senderName: 'Reponce & Beryse',
-    senderEmail: 'reponce.ibyoyakoze@gmail.com',
-    senderRole: 'Sisters',
-    content: 'Hello Bonette! Sending love from home. Papa and Mama send their blessings!',
-    timestamp: 'Today, 10:05 AM',
-    avatarColor: 'bg-rose-600'
-  }
-];
+// Clean fresh community chat (old confusing mock chat removed per user request)
+export const INITIAL_FAMILY_CHAT: FamilyChatMessage[] = [];
+
+export const DEFAULT_PERSONAL_SHOWCASE: PersonalShowcaseConfig = {
+  photoUrl: '/src/assets/images/bonette_personal_showcase_1792395117843.jpg',
+  title: 'IBYOYAKOZE Bonette',
+  subtitle: 'Software Engineer & L5 SOD Student at Lycée Saint Alexandre Sauli de Muhura',
+  bioSummary: 'Passionate Rwandan software developer specializing in React, TypeScript, responsive mobile web applications, and database architecture. Born October 15, 2008 in Gatsibo District, Eastern Province.',
+  location: 'Gatsibo District & Muhura, Rwanda',
+  birthDateFormatted: 'October 15, 2008 (Age 18 Milestone)',
+  motto: 'Building software that solves community challenges with perseverance, structured logic, and faith.',
+  verifiedStatus: 'Verified Student Developer & Portfolio Owner',
+};
 
 export interface BirthdayInfo {
   birthDate: string; // '2008-10-15'
