@@ -54,12 +54,24 @@ code, pre, .font-mono {
   }
 
   /* Unbox and Flatten Layout Containers */
-  main {
+  main,
+  .content-container,
+  [class*="pl-64"],
+  [class*="pl-72"] {
     padding: 0 !important;
+    padding-left: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
-  section {
+  /* Ensure each portfolio section begins on a new page when printed */
+  section,
+  .portfolio-section,
+  main > section,
+  main > div > section {
+    page-break-before: always;
+    break-before: page;
     padding-top: 1.25rem !important;
     padding-bottom: 1.25rem !important;
     border-bottom: 1px solid #e2e8f0 !important;

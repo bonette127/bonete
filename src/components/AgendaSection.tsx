@@ -25,6 +25,7 @@ interface AgendaSectionProps {
   isAdminLoggedIn: boolean;
   onOpenAdminAgenda: () => void;
   onQuickToggleTask?: (entryId: string, taskId: string) => void;
+  targetAgendaId?: string | null;
 }
 
 export const AgendaSection: React.FC<AgendaSectionProps> = ({
@@ -32,11 +33,18 @@ export const AgendaSection: React.FC<AgendaSectionProps> = ({
   isAdminLoggedIn,
   onOpenAdminAgenda,
   onQuickToggleTask,
+  targetAgendaId,
 }) => {
   const [selectedEntryId, setSelectedEntryId] = useState<string>(
     agendaEntries[0]?.id || ''
   );
   const [filterMood, setFilterMood] = useState<string>('All');
+
+  React.useEffect(() => {
+    if (targetAgendaId) {
+      setSelectedEntryId(targetAgendaId);
+    }
+  }, [targetAgendaId]);
 
   const selectedEntry =
     agendaEntries.find((e) => e.id === selectedEntryId) || agendaEntries[0];

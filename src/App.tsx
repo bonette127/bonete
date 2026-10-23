@@ -6,7 +6,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { HeaderNav } from './components/HeaderNav';
 import { HeroSection } from './components/HeroSection';
+import { PersonalIdentitySection } from './components/PersonalIdentitySection';
 import { AboutEducationSection } from './components/AboutEducationSection';
+import { AchievementsSection } from './components/AchievementsSection';
 import { AgendaSection } from './components/AgendaSection';
 import { TutorialsSection } from './components/TutorialsSection';
 import { StoriesArticlesSection } from './components/StoriesArticlesSection';
@@ -52,15 +54,19 @@ export default function App() {
   const [activeStoryReadTime, setActiveStoryReadTime] = useState<string | null>(null);
   const [isReadingActive, setIsReadingActive] = useState<boolean>(false);
 
-  // Session Reading History
+  // Reading History State with Persistent localStorage Storage
   const [sessionReadingHistory, setSessionReadingHistory] = useState<ReadArticleRecord[]>(() => {
     try {
-      const saved = sessionStorage.getItem('bonette_session_read_articles');
-      if (saved) return JSON.parse(saved);
+      const localSaved = localStorage.getItem('bonette_session_read_articles');
+      if (localSaved) return JSON.parse(localSaved);
+      const sessionSaved = sessionStorage.getItem('bonette_session_read_articles');
+      if (sessionSaved) return JSON.parse(sessionSaved);
     } catch {}
     return [];
   });
   const [targetArticleTitle, setTargetArticleTitle] = useState<string | null>(null);
+  const [targetTutorialId, setTargetTutorialId] = useState<string | null>(null);
+  const [targetAgendaId, setTargetAgendaId] = useState<string | null>(null);
 
   // --- Admin State ---
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
@@ -182,7 +188,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('bonette_session_read_articles', JSON.stringify(sessionReadingHistory));
+      localStorage.setItem('bonette_session_read_articles', JSON.stringify(sessionReadingHistory));
     } catch {}
   }, [sessionReadingHistory]);
 
@@ -264,6 +270,7 @@ export default function App() {
   const handleClearReadingHistory = () => {
     setSessionReadingHistory([]);
     try {
+      localStorage.removeItem('bonette_session_read_articles');
       sessionStorage.removeItem('bonette_session_read_articles');
     } catch {}
   };
@@ -273,10 +280,13 @@ export default function App() {
     handleSelectTab('articles');
   };
 
+  const achievementsRef = useRef<HTMLDivElement>(null);
+
   const handleSelectTab = (tab: string) => {
     setActiveTab(tab);
     const map: Record<string, React.RefObject<HTMLDivElement | null>> = {
       about: aboutRef,
+      achievements: achievementsRef,
       agenda: agendaRef,
       tutorials: tutorialsRef,
       articles: articlesRef,
@@ -427,17 +437,7 @@ export default function App() {
         onSelectHistoryArticle={handleSelectHistoryArticle}
       />
 
-      {/* Birthday & Anniversary Reminder Banner */}
-      <BirthdayAnniversaryBanner
-        onSendBirthdayWish={() => {
-          setModalType('Message');
-          setModalContent('Happy 18th Birthday and Anniversary, IBYOYAKOZE Bonette! Wishing you God\'s abundant blessings, wisdom, and groundbreaking success in software engineering from Gatsibo to the world! 🎉🎂');
-          setIsMessageModalOpen(true);
-        }}
-        onNavigateTab={handleSelectTab}
-      />
-
-      {/* Top Navigation Bar with Admin Portal button and Light/Dark toggle */}
+      {/* Side Navigation (Sidebar on desktop, sliding drawer on mobile) */}
       <HeaderNav
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
@@ -447,121 +447,158 @@ export default function App() {
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdmin={() => handleOpenAdminPortal('agenda')}
         onOpenAgendaLogger={() => handleOpenAdminPortal('agenda')}
+        articles={articles}
+        agendaEntries={agendaEntries}
+        onSelectArticleTitle={(title) => {
+          setTargetArticleTitle(title);
+          handleSelectTab('articles');
+        }}
+        onSelectTutorial={(tutId) => {
+          setTargetTutorialId(tutId);
+          handleSelectTab('tutorials');
+        }}
+        onSelectAgendaEntry={(agendaId) => {
+          setTargetAgendaId(agendaId);
+          handleSelectTab('agenda');
+        }}
+        onPrintCV={() => window.print()}
       />
 
-      {/* Welcome Banner when arriving from a Family Email Invite Link */}
-      {inviteWelcomeName && (
-        <div className="bg-emerald-700 text-white px-4 py-3 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto">
-            <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
-            <span>
-              Welcome to the family circle, <strong>{inviteWelcomeName}</strong>! Your email invite token is verified. You can now chat in the private Family Chat below!
-            </span>
-          </div>
-          <button
-            onClick={() => setInviteWelcomeName(null)}
-            className="text-white hover:text-emerald-200 p-1 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      <main className="flex-1">
-        {/* Hero Section */}
-        <HeroSection
-          onOpenMessageModal={() => handleOpenMessageModal('Message')}
+      {/* Main Content Area: Offset on desktop by the side menu width */}
+      <div className="lg:pl-64 xl:pl-72 flex-1 flex flex-col min-w-0 transition-all content-container">
+        {/* Birthday & Anniversary Reminder Banner */}
+        <BirthdayAnniversaryBanner
+          onSendBirthdayWish={() => {
+            setModalType('Message');
+            setModalContent('Happy 18th Birthday and Anniversary, IBYOYAKOZE Bonette! Wishing you God\'s abundant blessings, wisdom, and groundbreaking success in software engineering from Gatsibo to the world! 🎉🎂');
+            setIsMessageModalOpen(true);
+          }}
           onNavigateTab={handleSelectTab}
         />
 
-        {/* Section 1: About, Academic Journey (L5 SOD & G.S Kibondo), Family & Gatsibo */}
-        <div ref={aboutRef}>
-          <AboutEducationSection />
-        </div>
+        {/* Welcome Banner when arriving from a Family Email Invite Link */}
+        {inviteWelcomeName && (
+          <div className="bg-emerald-700 text-white px-4 py-3 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-2 max-w-4xl mx-auto">
+              <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
+              <span>
+                Welcome to the family circle, <strong>{inviteWelcomeName}</strong>! Your email invite token is verified. You can now chat in the private Family Chat below!
+              </span>
+            </div>
+            <button
+              onClick={() => setInviteWelcomeName(null)}
+              className="text-white hover:text-emerald-200 p-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-        {/* Section 2: Daily Agenda & Routine Tracker (Dynamic logs of daily activities) */}
-        <div ref={agendaRef}>
-          <AgendaSection
-            agendaEntries={agendaEntries}
-            isAdminLoggedIn={isAdminLoggedIn}
-            onOpenAdminAgenda={() => handleOpenAdminPortal('agenda')}
-            onQuickToggleTask={(entryId, taskId) => {
-              if (!isAdminLoggedIn) return;
-              setAgendaEntries((prev) =>
-                prev.map((entry) => {
-                  if (entry.id === entryId) {
-                    return {
-                      ...entry,
-                      routineTasks: entry.routineTasks.map((t) =>
-                        t.id === taskId ? { ...t, completed: !t.completed } : t
-                      ),
-                    };
-                  }
-                  return entry;
-                })
-              );
-            }}
+        <main className="flex-1 min-w-0">
+          {/* Hero Section */}
+          <HeroSection
+            onOpenMessageModal={() => handleOpenMessageModal('Message')}
+            onNavigateTab={handleSelectTab}
           />
-        </div>
 
-        {/* Section 3: Video Tutorials on How to Develop Website & App */}
-        <div ref={tutorialsRef}>
-          <TutorialsSection />
-        </div>
+          {/* Official Identity & Family Heritage Section */}
+          <PersonalIdentitySection onNavigateTab={handleSelectTab} />
 
-        {/* Section 4: Stories & Articles by Bonette (Admin Published) */}
-        <div ref={articlesRef}>
-          <StoriesArticlesSection
-            articles={articles}
-            isAdminLoggedIn={isAdminLoggedIn}
-            onOpenAdminPublish={() => handleOpenAdminPortal('articles')}
-            onReadingProgressChange={handleReadingProgressChange}
-            onMarkArticleFinished={handleMarkArticleFinished}
-            targetArticleTitle={targetArticleTitle}
-            onClearTargetArticleTitle={() => setTargetArticleTitle(null)}
-          />
-        </div>
+          {/* Section 1: About, Academic Journey (L5 SOD & G.S Kibondo), Family & Gatsibo */}
+          <div ref={aboutRef}>
+            <AboutEducationSection />
+          </div>
 
-        {/* Section 5: Photo Moments & Uploads (What I Done & My Photos) */}
-        <div ref={photosRef}>
-          <PhotoGallerySection />
-        </div>
+          {/* Section: Academic Milestones & Project Badges Showcase */}
+          <div ref={achievementsRef}>
+            <AchievementsSection onNavigateTab={handleSelectTab} />
+          </div>
 
-        {/* Section 6: Gospel Singing Sanctuary */}
-        <div ref={gospelRef}>
-          <GospelSanctuarySection
-            onSuggestSong={() => handleOpenMessageModal('Gospel Song Suggestion')}
-          />
-        </div>
+          {/* Section 2: Daily Agenda & Routine Tracker (Dynamic logs of daily activities) */}
+          <div ref={agendaRef}>
+            <AgendaSection
+              agendaEntries={agendaEntries}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onOpenAdminAgenda={() => handleOpenAdminPortal('agenda')}
+              targetAgendaId={targetAgendaId}
+              onQuickToggleTask={(entryId, taskId) => {
+                if (!isAdminLoggedIn) return;
+                setAgendaEntries((prev) =>
+                  prev.map((entry) => {
+                    if (entry.id === entryId) {
+                      return {
+                        ...entry,
+                        routineTasks: entry.routineTasks.map((t) =>
+                          t.id === taskId ? { ...t, completed: !t.completed } : t
+                        ),
+                      };
+                    }
+                    return entry;
+                  })
+                );
+              }}
+            />
+          </div>
 
-        {/* Section 7: Family Chat Room (Admin & Members with Email Invite System) */}
-        <div ref={familyChatRef}>
-          <FamilyChatSection
-            messages={familyChat}
-            onSendMessage={(msg, name, email, role) => handleSendFamilyChat(msg, name, email, role, false)}
-            familyMembers={familyMembers}
-            isAdminLoggedIn={isAdminLoggedIn}
-            onOpenAdminModal={() => setIsAdminLoginOpen(true)}
-            onOpenAddMemberModal={() => handleOpenAdminPortal('family')}
-          />
-        </div>
+          {/* Section 3: Video Tutorials on How to Develop Website & App */}
+          <div ref={tutorialsRef}>
+            <TutorialsSection targetTutorialId={targetTutorialId} />
+          </div>
 
-        {/* Section 8: Community Guestbook & Message Board */}
-        <div ref={messagesRef}>
-          <MessageBoardSection />
-        </div>
+          {/* Section 4: Stories & Articles by Bonette (Admin Published) */}
+          <div ref={articlesRef}>
+            <StoriesArticlesSection
+              articles={articles}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onOpenAdminPublish={() => handleOpenAdminPortal('articles')}
+              onReadingProgressChange={handleReadingProgressChange}
+              onMarkArticleFinished={handleMarkArticleFinished}
+              targetArticleTitle={targetArticleTitle}
+              onClearTargetArticleTitle={() => setTargetArticleTitle(null)}
+            />
+          </div>
 
-        {/* Section 9: GitHub Commit Console & Social Media Broadcast */}
-        <GitHubSocialSyncSection />
+          {/* Section 5: Photo Moments & Uploads (What I Done & My Photos) */}
+          <div ref={photosRef}>
+            <PhotoGallerySection />
+          </div>
 
-        {/* Section 10: SQLite & CockroachDB Database Studio */}
-        <div ref={databaseRef}>
-          <DatabaseStudioSection />
-        </div>
-      </main>
+          {/* Section 6: Gospel Singing Sanctuary */}
+          <div ref={gospelRef}>
+            <GospelSanctuarySection
+              onSuggestSong={() => handleOpenMessageModal('Gospel Song Suggestion')}
+            />
+          </div>
 
-      {/* Footer */}
-      <Footer onSelectTab={handleSelectTab} />
+          {/* Section 7: Family Chat Room (Admin & Members with Email Invite System) */}
+          <div ref={familyChatRef}>
+            <FamilyChatSection
+              messages={familyChat}
+              onSendMessage={(msg, name, email, role) => handleSendFamilyChat(msg, name, email, role, false)}
+              familyMembers={familyMembers}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onOpenAdminModal={() => setIsAdminLoginOpen(true)}
+              onOpenAddMemberModal={() => handleOpenAdminPortal('family')}
+            />
+          </div>
+
+          {/* Section 8: Community Guestbook & Message Board */}
+          <div ref={messagesRef}>
+            <MessageBoardSection />
+          </div>
+
+          {/* Section 9: GitHub Commit Console & Social Media Broadcast */}
+          <GitHubSocialSyncSection />
+
+          {/* Section 10: SQLite & CockroachDB Database Studio */}
+          <div ref={databaseRef}>
+            <DatabaseStudioSection />
+          </div>
+        </main>
+
+        {/* Footer */}
+        <Footer onSelectTab={handleSelectTab} />
+      </div>
 
       {/* Admin Login Modal (Restricted, secure, no credentials exposed) */}
       <AdminLoginModal
@@ -591,6 +628,8 @@ export default function App() {
         onAddAgendaEntry={handleAddAgendaEntry}
         onRemoveAgendaEntry={handleRemoveAgendaEntry}
         initialTab={adminInitialTab}
+        readingHistory={sessionReadingHistory}
+        onClearReadingHistory={handleClearReadingHistory}
       />
 
       {/* Guestbook & Message Modal with Real-time Validation for Email and Character Limits */}

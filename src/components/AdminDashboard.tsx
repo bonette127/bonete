@@ -30,8 +30,22 @@ import {
   Database,
   FileJson,
   RefreshCw,
-  HardDrive
+  HardDrive,
+  BarChart3,
+  BookmarkCheck,
+  Activity,
+  Key
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
+} from 'recharts';
 import {
   FamilyMemberItem,
   DailyEventLog,
@@ -40,7 +54,10 @@ import {
   FamilyChatMessage,
   AgendaEntry,
   AgendaTaskItem,
-  getBirthdayInfo
+  getBirthdayInfo,
+  ReadArticleRecord,
+  VisitorMessage,
+  INITIAL_MESSAGES
 } from '../data/portfolioData';
 
 interface AdminDashboardProps {
@@ -64,8 +81,10 @@ interface AdminDashboardProps {
   agendaEntries: AgendaEntry[];
   onAddAgendaEntry: (entry: AgendaEntry) => void;
   onRemoveAgendaEntry: (id: string) => void;
-  initialTab?: 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup';
+  initialTab?: 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'message-insights';
   onRestorePortfolioBackup?: (backupData: any) => void;
+  readingHistory?: ReadArticleRecord[];
+  onClearReadingHistory?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -89,17 +108,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRemoveAgendaEntry,
   initialTab = 'agenda',
   onRestorePortfolioBackup,
+  readingHistory = [],
+  onClearReadingHistory
 }) => {
-  const [activeTab, setActiveTab] = useState<'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'message-insights'>(initialTab);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   // --- Family Member Form State ---
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberRelation, setNewMemberRelation] = useState<FamilyMemberItem['relationship']>('Brother');
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberUsername, setNewMemberUsername] = useState('');
+  const [newMemberPasscode, setNewMemberPasscode] = useState('');
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [inviteModalData, setInviteModalData] = useState<{ member: FamilyMemberItem; link: string } | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [copiedPasscodeId, setCopiedPasscodeId] = useState<string | null>(null);
 
   // --- Daily Event Form State ---
   const [eventTitle, setEventTitle] = useState('');
@@ -174,11 +198,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!newMemberName.trim() || !newMemberEmail.trim()) return;
 
     const token = `fam-invite-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const username = newMemberUsername.trim().toLowerCase() || newMemberName.trim().toLowerCase().replace(/\s+/g, '');
+    const passcode = newMemberPasscode.trim() || `${newMemberName.trim().toLowerCase()}#2026`;
+
     const newMember: FamilyMemberItem = {
       id: `fam-${Date.now()}`,
       name: newMemberName.trim(),
       relationship: newMemberRelation,
       email: newMemberEmail.trim(),
+      username,
+      loginPasscode: passcode,
       phone: newMemberPhone.trim() || undefined,
       joinedAt: 'Just now',
       status: 'Active',
@@ -193,8 +222,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     setNewMemberName('');
     setNewMemberEmail('');
+    setNewMemberUsername('');
+    setNewMemberPasscode('');
     setNewMemberPhone('');
-    showNotification(`Added ${newMember.name} and generated invitation email link!`);
+    showNotification(`Added ${newMember.name} with passcode ${passcode}!`);
   };
 
   // 2. Submit Daily Event Log
@@ -664,6 +695,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('reading-history')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'reading-history'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 font-bold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BookmarkCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Reading History ({readingHistory.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('message-insights')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'message-insights'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 font-bold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Message Insights
+          </button>
+
+          <button
             onClick={() => setActiveTab('security')}
             className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'security'
@@ -1112,6 +1167,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Username (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newMemberUsername}
+                        onChange={(e) => setNewMemberUsername(e.target.value)}
+                        placeholder="e.g., mugisha"
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Passcode
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nameP = newMemberName.trim().toLowerCase() || 'member';
+                            setNewMemberPasscode(`${nameP.charAt(0).toUpperCase() + nameP.slice(1)}#2026`);
+                          }}
+                          className="text-[10px] text-emerald-600 hover:underline cursor-pointer"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={newMemberPasscode}
+                        onChange={(e) => setNewMemberPasscode(e.target.value)}
+                        placeholder="e.g. Mugisha#2026"
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono text-emerald-600 dark:text-emerald-400 font-semibold"
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Phone Number (Optional)
@@ -1129,7 +1223,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="submit"
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors shadow-xs"
                   >
-                    Add Member & Generate Invite Link
+                    Add Member & Generate Passcode
                   </button>
                 </form>
               </div>
@@ -1139,58 +1233,78 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                     Registered Family Members ({familyMembers.length})
                   </h4>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Manage Access</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Passcodes & Login Slips</span>
                 </div>
 
                 <div className="space-y-2">
-                  {familyMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between gap-3 shadow-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0">
-                          {member.avatar || member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-900 dark:text-white">
-                              {member.name}
-                            </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
-                              {member.relationship}
-                            </span>
+                  {familyMembers.map((member) => {
+                    const pass = member.loginPasscode || `${member.name.toLowerCase()}#2026`;
+                    const user = member.username || member.name.toLowerCase();
+                    return (
+                      <div
+                        key={member.id}
+                        className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0">
+                            {member.avatar || member.name.charAt(0)}
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                            {member.email} {member.phone && `· ${member.phone}`}
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                {member.name}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
+                                {member.relationship}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                              User: <strong>{user}</strong> | Passcode: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{pass}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const slip = `Family Hub Login:\nName: ${member.name} (${member.relationship})\nUsername/Email: ${user}\nPasscode: ${pass}\nPortal: ${window.location.origin}`;
+                              navigator.clipboard.writeText(slip);
+                              setCopiedPasscodeId(member.id);
+                              setTimeout(() => setCopiedPasscodeId(null), 2500);
+                              showNotification(`Copied login credentials slip for ${member.name}!`);
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer flex items-center gap-1 shrink-0"
+                            title="Copy credentials slip to send to this member"
+                          >
+                            {copiedPasscodeId === member.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedPasscodeId === member.id ? 'Copied Slip' : 'Copy Slip'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const link = `${window.location.origin}${window.location.pathname}?family_invite=${member.inviteToken || member.id}&name=${encodeURIComponent(member.name)}`;
+                              navigator.clipboard.writeText(link);
+                              showNotification(`Copied invite link for ${member.name}!`);
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <Copy className="w-3 h-3" /> Link
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onRemoveFamilyMember(member.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                            title="Remove member"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const link = `${window.location.origin}${window.location.pathname}?family_invite=${member.inviteToken || member.id}&name=${encodeURIComponent(member.name)}`;
-                            navigator.clipboard.writeText(link);
-                            showNotification(`Copied invite link for ${member.name}!`);
-                          }}
-                          className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1"
-                        >
-                          <Copy className="w-3 h-3" /> Link
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onRemoveFamilyMember(member.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                          title="Remove member"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1431,7 +1545,309 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* TAB 6: SECURITY & PASSWORD MANAGEMENT */}
+          {/* TAB: READING HISTORY STATISTICS */}
+          {activeTab === 'reading-history' && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                      <BookmarkCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        Article Reading History & Reader Progress
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Track which stories, tech write-ups, and dev logs have been read and finished by visitors
+                      </p>
+                    </div>
+                  </div>
+
+                  {readingHistory.length > 0 && onClearReadingHistory && (
+                    <button
+                      type="button"
+                      onClick={onClearReadingHistory}
+                      className="px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 border border-rose-200 dark:border-rose-900/60 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Clear Reading History
+                    </button>
+                  )}
+                </div>
+
+                {/* Metrics Summary Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Total Articles Read
+                    </span>
+                    <strong className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 block">
+                      {readingHistory.length}
+                    </strong>
+                    <span className="text-[10px] text-slate-400">Recorded in local vault</span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Published Stories
+                    </span>
+                    <strong className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 block">
+                      {articles.length}
+                    </strong>
+                    <span className="text-[10px] text-slate-400">Available in library</span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Completion Ratio
+                    </span>
+                    <strong className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 block">
+                      {articles.length > 0
+                        ? `${Math.min(100, Math.round((readingHistory.length / articles.length) * 100))}%`
+                        : '0%'}
+                    </strong>
+                    <span className="text-[10px] text-slate-400">Portfolio completion</span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                      Avg Progress
+                    </span>
+                    <strong className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 block">
+                      {readingHistory.length > 0 ? '100%' : '0%'}
+                    </strong>
+                    <span className="text-[10px] text-slate-400">Full reads tracked</span>
+                  </div>
+                </div>
+
+                {/* Table of Read Articles */}
+                <div className="pt-4 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-emerald-600" />
+                    <span>Completed Article Reading Logs</span>
+                  </h4>
+
+                  {readingHistory.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs text-slate-500">
+                      <BookmarkCheck className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
+                      <p className="font-semibold text-slate-700 dark:text-slate-300">No article reading sessions recorded yet.</p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        When visitors or students scroll through and finish your articles, their progress will be recorded here permanently.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-750">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-750">
+                          <tr>
+                            <th className="py-2.5 px-3">Article Title</th>
+                            <th className="py-2.5 px-3">Category</th>
+                            <th className="py-2.5 px-3">Read Time</th>
+                            <th className="py-2.5 px-3">Completed At</th>
+                            <th className="py-2.5 px-3">Progress</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-850">
+                          {readingHistory.map((item, idx) => (
+                            <tr key={`${item.id}-${idx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                              <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white max-w-xs truncate">
+                                {item.title}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-medium">
+                                  {item.category || 'Story'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">
+                                {item.readTime || '3 min'}
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                                {item.readAt}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-20 bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div
+                                      className="bg-emerald-600 h-full rounded-full"
+                                      style={{ width: `${item.progress || 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    {item.progress || 100}%
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MESSAGE INSIGHTS WITH RECHARTS BAR CHART */}
+          {activeTab === 'message-insights' && (() => {
+            // Retrieve messages from localStorage or default
+            const messagesList: VisitorMessage[] = (() => {
+              try {
+                const saved = localStorage.getItem('bonette_portfolio_messages');
+                if (saved) return JSON.parse(saved);
+              } catch {}
+              return INITIAL_MESSAGES;
+            })();
+
+            // Aggregate messages by category/type
+            const countsByType: Record<string, number> = {};
+            messagesList.forEach((msg) => {
+              const type = msg.type || 'Message';
+              countsByType[type] = (countsByType[type] || 0) + 1;
+            });
+
+            const chartData = [
+              { name: 'General Messages', type: 'Message', messages: countsByType['Message'] || 0, fill: '#059669' },
+              { name: 'Prayers & Faith', type: 'Prayer', messages: countsByType['Prayer'] || 0, fill: '#8b5cf6' },
+              { name: 'Feedback & Tech', type: 'Feedback', messages: countsByType['Feedback'] || 0, fill: '#2563eb' },
+              { name: 'Song Suggestions', type: 'Gospel Song Suggestion', messages: countsByType['Gospel Song Suggestion'] || 0, fill: '#f59e0b' },
+              { name: 'Questions', type: 'Question', messages: countsByType['Question'] || 0, fill: '#ec4899' },
+            ];
+
+            const totalMsg = messagesList.length;
+            const prayerCount = countsByType['Prayer'] || 0;
+            const songCount = countsByType['Gospel Song Suggestion'] || 0;
+            const feedbackCount = (countsByType['Feedback'] || 0) + (countsByType['Question'] || 0);
+
+            return (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-xs">
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                          Guestbook Message Insights & Engagement
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Visualizing incoming message volume over time and category distribution using Recharts
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+                      {totalMsg} Total Messages
+                    </span>
+                  </div>
+
+                  {/* Top Stats Overview */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Total Volume
+                      </span>
+                      <strong className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block">
+                        {totalMsg}
+                      </strong>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">100% active</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Prayers & Blessings
+                      </span>
+                      <strong className="text-xl font-extrabold text-purple-600 dark:text-purple-400 mt-1 block">
+                        {prayerCount}
+                      </strong>
+                      <span className="text-[10px] text-purple-500 font-medium">Faith encouragement</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Song Suggestions
+                      </span>
+                      <strong className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 block">
+                        {songCount}
+                      </strong>
+                      <span className="text-[10px] text-amber-500 font-medium">Gospel favorites</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Tech & Feedback
+                      </span>
+                      <strong className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 block">
+                        {feedbackCount}
+                      </strong>
+                      <span className="text-[10px] text-blue-500 font-medium">Code & Questions</span>
+                    </div>
+                  </div>
+
+                  {/* Bar Chart Visualization */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Message Volume by Category (Recharts)</span>
+                      </h4>
+                      <span className="text-[11px] text-slate-400">Interactive Bar Chart</span>
+                    </div>
+
+                    <div className="h-64 sm:h-72 w-full pt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-10} textAnchor="end" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '10px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              backgroundColor: '#ffffff',
+                              color: '#0f172a'
+                            }}
+                          />
+                          <Bar dataKey="messages" fill="#059669" radius={[6, 6, 0, 0]} name="Messages" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Recent Incoming Message Stream */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                      Recent Visitor Message Stream ({messagesList.length})
+                    </h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {messagesList.slice(0, 10).map((msg) => (
+                        <div
+                          key={msg.id}
+                          className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/70 text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 dark:text-white">{msg.name}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-semibold">
+                                {msg.type}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400">{msg.createdAt}</span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                            {msg.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           {activeTab === 'security' && (
             <div className="max-w-xl mx-auto bg-white dark:bg-slate-850 p-6 rounded-xl border border-slate-200 dark:border-slate-800 space-y-5 shadow-xs">
               <div className="flex items-center gap-3">

@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Pause, Code2, CheckCircle2, Copy, Check, Smartphone, Database, Globe, Terminal, Sparkles } from 'lucide-react';
 import { TUTORIALS_DATA, TutorialItem } from '../data/portfolioData';
 
-export const TutorialsSection: React.FC = () => {
+interface TutorialsSectionProps {
+  targetTutorialId?: string | null;
+}
+
+export const TutorialsSection: React.FC<TutorialsSectionProps> = ({ targetTutorialId }) => {
   const [activeTutorial, setActiveTutorial] = useState<TutorialItem>(TUTORIALS_DATA[0]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [playbackTime, setPlaybackTime] = useState<number>(45);
+
+  useEffect(() => {
+    if (targetTutorialId) {
+      const match = TUTORIALS_DATA.find((t) => t.id === targetTutorialId);
+      if (match) {
+        setActiveTutorial(match);
+        setIsPlaying(false);
+      }
+    }
+  }, [targetTutorialId]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(activeTutorial.codeSnippet);
