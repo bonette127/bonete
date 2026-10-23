@@ -27,6 +27,7 @@ import {
   FileDown
 } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
+import { PrintingOverlay } from './PrintingOverlay';
 import {
   getBirthdayInfo,
   StoryArticle,
@@ -803,40 +804,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
       {/* =========================================================================
           5. SUBTLE 'PRINTING...' OVERLAY (Active during Print Dialog preparation)
           ========================================================================= */}
-      {isPrinting && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
-        >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 text-center space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-xs">
-              <Printer className="w-6 h-6 animate-pulse" />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
-                <span>Printing Document...</span>
-                <span className="inline-flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                </span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                The browser print dialog is active. You can save as a PDF document or select a printer.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setIsPrinting(false)}
-              className="px-3 py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
+      <PrintingOverlay isPrinting={isPrinting} onDismiss={() => setIsPrinting(false)} />
     </>
   );
 };
