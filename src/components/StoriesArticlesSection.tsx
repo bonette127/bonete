@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Clock, Heart, Share2, X, ArrowRight, Sparkles, CheckCircle2, BookCheck } from 'lucide-react';
 import { StoryArticle } from '../data/portfolioData';
+import { calculateReadingTime } from '../utils/readingTime';
 
 interface StoriesArticlesSectionProps {
   articles: StoryArticle[];
@@ -70,7 +71,8 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
         const progress = Math.min(100, Math.max(0, Math.round((el.scrollTop / total) * 100)));
         setModalScrollProgress(progress);
         if (selectedArticle) {
-          onReadingProgressChange?.(progress, selectedArticle.title, selectedArticle.category, selectedArticle.readTime);
+          const stats = calculateReadingTime(selectedArticle.content || selectedArticle.excerpt);
+          onReadingProgressChange?.(progress, selectedArticle.title, selectedArticle.category, stats.text);
           if (progress >= 95 && !isMarkedFinished) {
             setIsMarkedFinished(true);
             onMarkArticleFinished?.(selectedArticle);
@@ -84,7 +86,8 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
     setSelectedArticle(article);
     setModalScrollProgress(0);
     setIsMarkedFinished(false);
-    onReadingProgressChange?.(0, article.title, article.category, article.readTime);
+    const stats = calculateReadingTime(article.content || article.excerpt);
+    onReadingProgressChange?.(0, article.title, article.category, stats.text);
   };
 
   const handleCloseArticle = () => {
@@ -98,7 +101,8 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
     if (selectedArticle) {
       setIsMarkedFinished(true);
       setModalScrollProgress(100);
-      onReadingProgressChange?.(100, selectedArticle.title, selectedArticle.category, selectedArticle.readTime);
+      const stats = calculateReadingTime(selectedArticle.content || selectedArticle.excerpt);
+      onReadingProgressChange?.(100, selectedArticle.title, selectedArticle.category, stats.text);
       onMarkArticleFinished?.(selectedArticle);
     }
   };
@@ -151,6 +155,7 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredArticles.map((article) => {
             const extraLikes = likedArticles[article.id] || 0;
+            const readingStats = calculateReadingTime(article.content || article.excerpt);
             return (
               <article
                 key={article.id}
@@ -175,12 +180,19 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
                   )}
 
                   <div className="p-5 sm:p-6 space-y-3">
-                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {article.readTime}
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span
+                        className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400"
+                        title={`Estimated reading time based on ${readingStats.wordCount} words (at 200 words/min)`}
+                      >
+                        <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>{readingStats.text}</span>
                       </span>
-                      <span>·</span>
+                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        {readingStats.wordCount} words
+                      </span>
+                      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">·</span>
                       <span>{article.publishedAt}</span>
                     </div>
 
@@ -242,7 +254,13 @@ export const StoriesArticlesSection: React.FC<StoriesArticlesSectionProps> = ({
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">{selectedArticle.category}</span>
                   <span>·</span>
-                  <span>{selectedArticle.readTime}</span>
+                  <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>{calculateReadingTime(selectedArticle.content || selectedArticle.excerpt).text}</span>
+                    <span className="text-[11px] text-slate-400 font-normal">
+                      ({calculateReadingTime(selectedArticle.content || selectedArticle.excerpt).wordCount} words)
+                    </span>
+                  </span>
                   <span>·</span>
                   <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                     {modalScrollProgress}% read {isMarkedFinished && '✓ Finished'}

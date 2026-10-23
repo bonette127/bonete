@@ -10,6 +10,13 @@ export interface ReadingTimeResult {
   wpm: number;
 }
 
+/**
+ * Calculates the estimated reading time based on the article word count.
+ * 
+ * @param content The text content of the article (or excerpt)
+ * @param wpm Reading speed in words per minute (default: 200 wpm)
+ * @returns ReadingTimeResult containing minutes, formatted text, and wordCount
+ */
 export function calculateReadingTime(
   content: string | undefined | null,
   wpm: number = 200
@@ -23,8 +30,14 @@ export function calculateReadingTime(
     };
   }
 
+  // Strip html tags, markdown tokens, and special symbols for clean word extraction
+  const cleanContent = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[#*`_~[\]()]/g, ' ')
+    .trim();
+
   // Split by whitespace to extract individual words
-  const words = content.trim().split(/\s+/).filter(Boolean);
+  const words = cleanContent.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
 
   // Calculate minutes, minimum 1 min
