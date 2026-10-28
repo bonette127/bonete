@@ -184,10 +184,10 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
               </li>
               <li>
                 <button
-                  onClick={() => onSelectTab('database')}
+                  onClick={() => onSelectTab('transcripts')}
                   className="hover:text-emerald-400 transition-colors cursor-pointer"
                 >
-                  SQLite & CockroachDB Studio
+                  Transcripts & Certificates
                 </button>
               </li>
             </ul>

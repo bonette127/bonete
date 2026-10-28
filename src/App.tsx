@@ -17,7 +17,7 @@ import { GospelSanctuarySection } from './components/GospelSanctuarySection';
 import { FamilyChatSection } from './components/FamilyChatSection';
 import { MessageBoardSection } from './components/MessageBoardSection';
 import { GitHubSocialSyncSection } from './components/GitHubSocialSyncSection';
-import { DatabaseStudioSection } from './components/DatabaseStudioSection';
+import { AcademicTranscriptsSection } from './components/AcademicTranscriptsSection';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { GuestbookMessageModal } from './components/GuestbookMessageModal';
@@ -39,7 +39,9 @@ import {
   INITIAL_DAILY_EVENTS,
   INITIAL_STORIES_ARTICLES,
   INITIAL_FAMILY_CHAT,
-  INITIAL_AGENDA_ENTRIES
+  INITIAL_AGENDA_ENTRIES,
+  QuarterlyReportItem,
+  INITIAL_QUARTERLY_REPORTS
 } from './data/portfolioData';
 import { useTheme } from './hooks/useTheme';
 
@@ -78,7 +80,7 @@ export default function App() {
   });
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState<boolean>(false);
-  const [adminInitialTab, setAdminInitialTab] = useState<'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security'>('agenda');
+  const [adminInitialTab, setAdminInitialTab] = useState<'daily-activity' | 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'quarterly-reports' | 'reading-analytics'>('daily-activity');
 
   // --- Dynamic Application Data with localStorage Persistence ---
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberItem[]>(() => {
@@ -121,6 +123,14 @@ export default function App() {
     return INITIAL_AGENDA_ENTRIES;
   });
 
+  const [quarterlyReports, setQuarterlyReports] = useState<QuarterlyReportItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('bonette_quarterly_reports');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_QUARTERLY_REPORTS;
+  });
+
   // URL Invite Welcome Banner State
   const [inviteWelcomeName, setInviteWelcomeName] = useState<string | null>(null);
 
@@ -138,7 +148,7 @@ export default function App() {
   const gospelRef = useRef<HTMLDivElement>(null);
   const familyChatRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
-  const databaseRef = useRef<HTMLDivElement>(null);
+  const transcriptsRef = useRef<HTMLDivElement>(null);
 
   // Check URL params for family invite link
   useEffect(() => {
@@ -185,6 +195,12 @@ export default function App() {
       localStorage.setItem('bonette_agenda_entries', JSON.stringify(agendaEntries));
     } catch {}
   }, [agendaEntries]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonette_quarterly_reports', JSON.stringify(quarterlyReports));
+    } catch {}
+  }, [quarterlyReports]);
 
   useEffect(() => {
     try {
@@ -294,7 +310,7 @@ export default function App() {
       gospel: gospelRef,
       'family-chat': familyChatRef,
       messages: messagesRef,
-      database: databaseRef,
+      transcripts: transcriptsRef,
     };
 
     const target = map[tab];
@@ -303,7 +319,7 @@ export default function App() {
     }
   };
 
-  const handleOpenAdminPortal = (tab: 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' = 'agenda') => {
+  const handleOpenAdminPortal = (tab: 'daily-activity' | 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'quarterly-reports' | 'reading-analytics' = 'daily-activity') => {
     setAdminInitialTab(tab);
     if (isAdminLoggedIn) {
       setIsAdminDashboardOpen(true);
@@ -330,6 +346,10 @@ export default function App() {
 
   const handleRemoveFamilyMember = (id: string) => {
     setFamilyMembers(familyMembers.filter((m) => m.id !== id));
+  };
+
+  const handleUpdateFamilyMember = (updatedMember: FamilyMemberItem) => {
+    setFamilyMembers((prev) => prev.map((m) => (m.id === updatedMember.id ? updatedMember : m)));
   };
 
   const handleAddDailyEvent = (newEvent: DailyEventLog) => {
@@ -364,12 +384,22 @@ export default function App() {
     setAgendaEntries(agendaEntries.filter((e) => e.id !== id));
   };
 
+  const handleAddQuarterlyReport = (newReport: QuarterlyReportItem) => {
+    setQuarterlyReports([newReport, ...quarterlyReports]);
+  };
+
+  const handleRemoveQuarterlyReport = (id: string) => {
+    setQuarterlyReports(quarterlyReports.filter((r) => r.id !== id));
+  };
+
   const handleSendFamilyChat = (
     content: string,
     senderName = 'IBYOYAKOZE Bonette (Admin)',
     senderEmail = 'byoyakozebonette@protonmail.com',
     senderRole = 'Admin / Student Developer',
-    isAnnouncement = false
+    isAnnouncement = false,
+    replyTo?: { id: string; senderName: string; text?: string },
+    voiceNote?: { url: string; duration: string }
   ) => {
     const newMsg: FamilyChatMessage = {
       id: `chat-${Date.now()}`,
@@ -379,6 +409,16 @@ export default function App() {
       content,
       timestamp: 'Just now',
       isAnnouncement,
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            senderName: replyTo.senderName,
+            contentSnippet: replyTo.text || '',
+            senderRole: undefined
+          }
+        : undefined,
+      voiceNoteUrl: voiceNote?.url,
+      voiceNoteDuration: voiceNote?.duration
     };
     setFamilyChat([...familyChat, newMsg]);
   };
@@ -509,6 +549,15 @@ export default function App() {
             <AboutEducationSection />
           </div>
 
+          {/* Section: Academic Transcripts (P1-P6, S1-S3, L3-L5 SOD) & Earned Certificates */}
+          <div ref={transcriptsRef}>
+            <AcademicTranscriptsSection
+              quarterlyReports={quarterlyReports}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onOpenAdminQuarterlyReports={() => handleOpenAdminPortal('quarterly-reports')}
+            />
+          </div>
+
           {/* Section: Academic Milestones & Project Badges Showcase */}
           <div ref={achievementsRef}>
             <AchievementsSection onNavigateTab={handleSelectTab} />
@@ -570,15 +619,18 @@ export default function App() {
             />
           </div>
 
-          {/* Section 7: Family Chat Room (Admin & Members with Email Invite System) */}
+          {/* Section 7: Family Chat Room (Admin & Members with WebRTC & Voice Notes) */}
           <div ref={familyChatRef}>
             <FamilyChatSection
               messages={familyChat}
-              onSendMessage={(msg, name, email, role) => handleSendFamilyChat(msg, name, email, role, false)}
+              onSendMessage={(msg, name, email, role, replyTo, voiceNote) =>
+                handleSendFamilyChat(msg, name, email, role, false, replyTo, voiceNote)
+              }
               familyMembers={familyMembers}
               isAdminLoggedIn={isAdminLoggedIn}
               onOpenAdminModal={() => setIsAdminLoginOpen(true)}
               onOpenAddMemberModal={() => handleOpenAdminPortal('family')}
+              onNavigateSection={handleSelectTab}
             />
           </div>
 
@@ -589,11 +641,6 @@ export default function App() {
 
           {/* Section 9: GitHub Commit Console & Social Media Broadcast */}
           <GitHubSocialSyncSection />
-
-          {/* Section 10: SQLite & CockroachDB Database Studio */}
-          <div ref={databaseRef}>
-            <DatabaseStudioSection />
-          </div>
         </main>
 
         {/* Footer */}
@@ -615,6 +662,7 @@ export default function App() {
         familyMembers={familyMembers}
         onAddFamilyMember={handleAddFamilyMember}
         onRemoveFamilyMember={handleRemoveFamilyMember}
+        onUpdateFamilyMember={handleUpdateFamilyMember}
         dailyEvents={dailyEvents}
         onAddDailyEvent={handleAddDailyEvent}
         onRemoveDailyEvent={handleRemoveDailyEvent}
@@ -627,6 +675,9 @@ export default function App() {
         agendaEntries={agendaEntries}
         onAddAgendaEntry={handleAddAgendaEntry}
         onRemoveAgendaEntry={handleRemoveAgendaEntry}
+        quarterlyReports={quarterlyReports}
+        onAddQuarterlyReport={handleAddQuarterlyReport}
+        onRemoveQuarterlyReport={handleRemoveQuarterlyReport}
         initialTab={adminInitialTab}
         readingHistory={sessionReadingHistory}
         onClearReadingHistory={handleClearReadingHistory}

@@ -34,7 +34,8 @@ import {
   BarChart3,
   BookmarkCheck,
   Activity,
-  Key
+  Key,
+  GraduationCap
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -57,8 +58,12 @@ import {
   getBirthdayInfo,
   ReadArticleRecord,
   VisitorMessage,
-  INITIAL_MESSAGES
+  INITIAL_MESSAGES,
+  QuarterlyReportItem,
+  INITIAL_QUARTERLY_REPORTS
 } from '../data/portfolioData';
+import { DailyActivityLog } from './DailyActivityLog';
+import { QuarterlyReportsManager } from './QuarterlyReportsManager';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -68,6 +73,7 @@ interface AdminDashboardProps {
   familyMembers: FamilyMemberItem[];
   onAddFamilyMember: (member: FamilyMemberItem) => void;
   onRemoveFamilyMember: (id: string) => void;
+  onUpdateFamilyMember?: (member: FamilyMemberItem) => void;
   dailyEvents: DailyEventLog[];
   onAddDailyEvent: (event: DailyEventLog) => void;
   onRemoveDailyEvent: (id: string) => void;
@@ -81,7 +87,11 @@ interface AdminDashboardProps {
   agendaEntries: AgendaEntry[];
   onAddAgendaEntry: (entry: AgendaEntry) => void;
   onRemoveAgendaEntry: (id: string) => void;
-  initialTab?: 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'message-insights';
+  // Quarterly Reports
+  quarterlyReports?: QuarterlyReportItem[];
+  onAddQuarterlyReport?: (report: QuarterlyReportItem) => void;
+  onRemoveQuarterlyReport?: (id: string) => void;
+  initialTab?: 'daily-activity' | 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'reading-analytics' | 'message-insights' | 'quarterly-reports';
   onRestorePortfolioBackup?: (backupData: any) => void;
   readingHistory?: ReadArticleRecord[];
   onClearReadingHistory?: () => void;
@@ -94,6 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   familyMembers,
   onAddFamilyMember,
   onRemoveFamilyMember,
+  onUpdateFamilyMember,
   dailyEvents,
   onAddDailyEvent,
   onRemoveDailyEvent,
@@ -106,13 +117,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   agendaEntries,
   onAddAgendaEntry,
   onRemoveAgendaEntry,
-  initialTab = 'agenda',
+  quarterlyReports: propQuarterlyReports,
+  onAddQuarterlyReport,
+  onRemoveQuarterlyReport,
+  initialTab = 'daily-activity',
   onRestorePortfolioBackup,
   readingHistory = [],
   onClearReadingHistory
 }) => {
-  const [activeTab, setActiveTab] = useState<'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'message-insights'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'daily-activity' | 'family' | 'events' | 'articles' | 'photos' | 'chat' | 'agenda' | 'security' | 'backup' | 'reading-history' | 'reading-analytics' | 'message-insights' | 'quarterly-reports'>(initialTab);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+
+  // Local fallback state for Quarterly Reports
+  const [internalReports, setInternalReports] = useState<QuarterlyReportItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('bonette_quarterly_reports');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_QUARTERLY_REPORTS;
+  });
+
+  const reportsList = propQuarterlyReports || internalReports;
+
+  const handleAddReportInternal = (newReport: QuarterlyReportItem) => {
+    if (onAddQuarterlyReport) {
+      onAddQuarterlyReport(newReport);
+    }
+    const updated = [newReport, ...reportsList];
+    setInternalReports(updated);
+    try {
+      localStorage.setItem('bonette_quarterly_reports', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleRemoveReportInternal = (id: string) => {
+    if (onRemoveQuarterlyReport) {
+      onRemoveQuarterlyReport(id);
+    }
+    const updated = reportsList.filter((r) => r.id !== id);
+    setInternalReports(updated);
+    try {
+      localStorage.setItem('bonette_quarterly_reports', JSON.stringify(updated));
+    } catch {}
+  };
 
   // --- Family Member Form State ---
   const [newMemberName, setNewMemberName] = useState('');
@@ -182,6 +229,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [securityMessage, setSecurityMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // --- Backup & Export / Import State ---
+  const [importSummary, setImportSummary] = useState<{
+    agendaCount: number;
+    familyCount: number;
+    eventsCount: number;
+    articlesCount: number;
+    messagesCount: number;
+    exportedAt?: string;
+  } | null>(null);
+  const [importedData, setImportedData] = useState<any | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -432,18 +491,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification('Password updated successfully!');
   };
 
-  // --- Backup & Export / Import State & Handlers ---
-  const [importSummary, setImportSummary] = useState<{
-    agendaCount: number;
-    familyCount: number;
-    eventsCount: number;
-    articlesCount: number;
-    messagesCount: number;
-    exportedAt?: string;
-  } | null>(null);
-  const [importedData, setImportedData] = useState<any | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-
+  // --- Backup & Export / Import Handlers ---
   const handleExportBackup = () => {
     try {
       const messages = (() => {
@@ -623,6 +671,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Navigation Tabs */}
         <div className="px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto bg-white dark:bg-slate-900 text-xs font-medium">
           <button
+            onClick={() => setActiveTab('daily-activity')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'daily-activity'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 font-bold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Daily Activity Log
+          </button>
+
+          <button
+            onClick={() => setActiveTab('quarterly-reports')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'quarterly-reports'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 font-bold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Quarterly Report Upload ({reportsList.length})
+          </button>
+
+          <button
             onClick={() => setActiveTab('agenda')}
             className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'agenda'
@@ -631,7 +703,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            Daily Agenda & Routine Logger ({agendaEntries.length})
+            Daily Agenda & Routines ({agendaEntries.length})
           </button>
 
           <button
@@ -707,6 +779,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('reading-analytics')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'reading-analytics'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 font-bold'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Reading Analytics
+          </button>
+
+          <button
             onClick={() => setActiveTab('message-insights')}
             className={`py-3 px-3 border-b-2 flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'message-insights'
@@ -745,6 +829,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Tab Body Container */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-950/40">
+          {/* TAB: DAILY ACTIVITY LOG (RECORD, LIST, DELETE WITH TIMESTAMPS) */}
+          {activeTab === 'daily-activity' && (
+            <DailyActivityLog onNotify={showNotification} />
+          )}
+
+          {/* TAB: QUARTERLY REPORTS MANAGER (ADMIN EXCLUSIVE UPLOAD) */}
+          {activeTab === 'quarterly-reports' && (
+            <QuarterlyReportsManager
+              reports={reportsList}
+              onAddReport={handleAddReportInternal}
+              onRemoveReport={handleRemoveReportInternal}
+              onNotify={showNotification}
+            />
+          )}
+
           {/* TAB 0: AGENDA & ROUTINE LOGGER */}
           {activeTab === 'agenda' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -753,10 +852,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    Log How Your Day Went, Activities & Routine Tasks
+                    Admin Daily Work Log: Record Everything Done
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Keep your portfolio updated as you grow. Record your daily routines at Lycée Saint Alexandre Sauli, coding practice, and personal achievements.
+                    Your central daily log to record everything you have done each day: daily routines at Lycée Saint Alexandre Sauli, software engineering practice, tasks completed, activities performed, and reflections.
                   </p>
                 </div>
 
@@ -1240,67 +1339,123 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {familyMembers.map((member) => {
                     const pass = member.loginPasscode || `${member.name.toLowerCase()}#2026`;
                     const user = member.username || member.name.toLowerCase();
+                    const memberAllowed = member.allowedSections || ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda'];
+
+                    const AVAILABLE_PERMISSIONS = [
+                      { id: 'family-chat', label: 'Chat' },
+                      { id: 'about', label: 'About' },
+                      { id: 'transcripts', label: 'Transcripts' },
+                      { id: 'achievements', label: 'Achievements' },
+                      { id: 'photos', label: 'Photos' },
+                      { id: 'gospel', label: 'Gospel' },
+                      { id: 'articles', label: 'Articles' },
+                      { id: 'agenda', label: 'Agenda' },
+                    ];
+
+                    const handleTogglePermission = (sectionId: string) => {
+                      if (sectionId === 'family-chat') return; // chat is always allowed for family
+                      const exists = memberAllowed.includes(sectionId);
+                      const next = exists ? memberAllowed.filter((s) => s !== sectionId) : [...memberAllowed, sectionId];
+                      const updatedMember: FamilyMemberItem = { ...member, allowedSections: next };
+                      if (onUpdateFamilyMember) {
+                        onUpdateFamilyMember(updatedMember);
+                      }
+                      showNotification(`Updated access for ${member.name}: ${next.length} sections allowed.`);
+                    };
+
                     return (
                       <div
                         key={member.id}
-                        className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between gap-3 shadow-xs"
+                        className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 space-y-3 shadow-xs"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0">
-                            {member.avatar || member.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                {member.name}
-                              </span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
-                                {member.relationship}
-                              </span>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center text-sm shrink-0">
+                              {member.avatar || member.name.charAt(0)}
                             </div>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                              User: <strong>{user}</strong> | Passcode: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{pass}</span>
-                            </p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                  {member.name}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
+                                  {member.relationship}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                User: <strong>{user}</strong> | Passcode: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{pass}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const slip = `Family Hub Login:\nName: ${member.name} (${member.relationship})\nUsername/Email: ${user}\nPasscode: ${pass}\nPortal: ${window.location.origin}`;
+                                navigator.clipboard.writeText(slip);
+                                setCopiedPasscodeId(member.id);
+                                setTimeout(() => setCopiedPasscodeId(null), 2500);
+                                showNotification(`Copied login credentials slip for ${member.name}!`);
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer flex items-center gap-1 shrink-0"
+                              title="Copy credentials slip to send to this member"
+                            >
+                              {copiedPasscodeId === member.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedPasscodeId === member.id ? 'Copied Slip' : 'Copy Slip'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const link = `${window.location.origin}${window.location.pathname}?family_invite=${member.inviteToken || member.id}&name=${encodeURIComponent(member.name)}`;
+                                navigator.clipboard.writeText(link);
+                                showNotification(`Copied invite link for ${member.name}!`);
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1 shrink-0"
+                            >
+                              <Copy className="w-3 h-3" /> Link
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => onRemoveFamilyMember(member.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                              title="Remove member"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const slip = `Family Hub Login:\nName: ${member.name} (${member.relationship})\nUsername/Email: ${user}\nPasscode: ${pass}\nPortal: ${window.location.origin}`;
-                              navigator.clipboard.writeText(slip);
-                              setCopiedPasscodeId(member.id);
-                              setTimeout(() => setCopiedPasscodeId(null), 2500);
-                              showNotification(`Copied login credentials slip for ${member.name}!`);
-                            }}
-                            className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 cursor-pointer flex items-center gap-1 shrink-0"
-                            title="Copy credentials slip to send to this member"
-                          >
-                            {copiedPasscodeId === member.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedPasscodeId === member.id ? 'Copied Slip' : 'Copy Slip'}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const link = `${window.location.origin}${window.location.pathname}?family_invite=${member.inviteToken || member.id}&name=${encodeURIComponent(member.name)}`;
-                              navigator.clipboard.writeText(link);
-                              showNotification(`Copied invite link for ${member.name}!`);
-                            }}
-                            className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 cursor-pointer flex items-center gap-1 shrink-0"
-                          >
-                            <Copy className="w-3 h-3" /> Link
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => onRemoveFamilyMember(member.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                            title="Remove member"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Admin Content Authorization Controls */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              Content Authorization (Controlled by Bonette):
+                            </span>
+                            <span>{memberAllowed.length} menus authorized</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {AVAILABLE_PERMISSIONS.map((perm) => {
+                              const isAllowed = memberAllowed.includes(perm.id);
+                              return (
+                                <button
+                                  key={perm.id}
+                                  type="button"
+                                  onClick={() => handleTogglePermission(perm.id)}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer border ${
+                                    isAllowed
+                                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 opacity-60'
+                                  }`}
+                                  title={`Toggle access to ${perm.label}`}
+                                >
+                                  {isAllowed ? '✓' : '+'} {perm.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1687,6 +1842,247 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           )}
+
+          {/* TAB: READING ANALYTICS WITH RECHARTS BAR CHART */}
+          {activeTab === 'reading-analytics' && (() => {
+            // Aggregate reading records from history and localStorage
+            const storedHistory: ReadArticleRecord[] = (() => {
+              if (readingHistory && readingHistory.length > 0) return readingHistory;
+              try {
+                const saved = localStorage.getItem('bonette_session_read_articles');
+                if (saved) return JSON.parse(saved);
+              } catch {}
+              return [];
+            })();
+
+            // Aggregate frequency map per article title
+            const articleStatsMap: Record<string, { count: number; category: string; progressSum: number; fullTitle: string; readTime: string }> = {};
+
+            // Seed with articles so chart is informative even before multiple reads
+            articles.forEach((art) => {
+              articleStatsMap[art.title] = {
+                count: 1, // base interest baseline
+                category: art.category,
+                progressSum: 85,
+                fullTitle: art.title,
+                readTime: art.readTime
+              };
+            });
+
+            // Add real session readings
+            storedHistory.forEach((record) => {
+              if (!articleStatsMap[record.title]) {
+                articleStatsMap[record.title] = {
+                  count: 0,
+                  category: record.category || 'Article',
+                  progressSum: 0,
+                  fullTitle: record.title,
+                  readTime: record.readTime || '3 min'
+                };
+              }
+              articleStatsMap[record.title].count += 1;
+              articleStatsMap[record.title].progressSum += (record.progress || 100);
+            });
+
+            const chartData = Object.values(articleStatsMap)
+              .map((stat, idx) => {
+                const colors = ['#059669', '#0d9488', '#2563eb', '#8b5cf6', '#d97706', '#e11d48'];
+                return {
+                  name: stat.fullTitle.length > 22 ? stat.fullTitle.slice(0, 20) + '…' : stat.fullTitle,
+                  fullTitle: stat.fullTitle,
+                  reads: stat.count,
+                  category: stat.category,
+                  avgProgress: Math.min(100, Math.round(stat.progressSum / stat.count)),
+                  fill: colors[idx % colors.length]
+                };
+              })
+              .sort((a, b) => b.reads - a.reads);
+
+            const totalReadingSessions = chartData.reduce((acc, curr) => acc + curr.reads, 0);
+            const uniqueArticlesCount = chartData.length;
+            const mostPopularArticle = chartData[0]?.fullTitle || 'None yet';
+            const overallAvgCompletion = Math.round(
+              chartData.reduce((acc, curr) => acc + curr.avgProgress, 0) / (chartData.length || 1)
+            );
+
+            return (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6 shadow-xs">
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                          Reading Analytics & Audience Engagement
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Recharts bar chart visualizing the most frequently read articles from user reading history
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-800">
+                        {totalReadingSessions} Total Reads
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Total Reads
+                      </span>
+                      <strong className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-1 block">
+                        {totalReadingSessions}
+                      </strong>
+                      <span className="text-[10px] text-slate-500">Recorded sessions</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Unique Articles
+                      </span>
+                      <strong className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 block">
+                        {uniqueArticlesCount}
+                      </strong>
+                      <span className="text-[10px] text-slate-500">Published stories</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Avg Completion
+                      </span>
+                      <strong className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-1 block">
+                        {overallAvgCompletion}%
+                      </strong>
+                      <span className="text-[10px] text-slate-500">Scroll depth rate</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Top Article
+                      </span>
+                      <strong className="text-xs font-bold text-slate-900 dark:text-white mt-1 block truncate" title={mostPopularArticle}>
+                        {mostPopularArticle}
+                      </strong>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Highest frequency</span>
+                    </div>
+                  </div>
+
+                  {/* Recharts Bar Chart Container */}
+                  <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Most Frequently Read Articles (Recharts Bar Visualization)</span>
+                      </h4>
+                      <span className="text-[11px] text-slate-400 font-mono">X: Articles &bull; Y: Times Read</span>
+                    </div>
+
+                    <div className="h-72 sm:h-80 w-full pt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          margin={{ top: 15, right: 15, left: -10, bottom: 40 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 11 }}
+                            interval={0}
+                            angle={-15}
+                            textAnchor="end"
+                          />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl text-xs space-y-1 max-w-xs">
+                                    <p className="font-bold text-slate-900 dark:text-white">{data.fullTitle}</p>
+                                    <p className="text-emerald-600 dark:text-emerald-400 font-semibold">Category: {data.category}</p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <strong>{data.reads}</strong> times read
+                                    </p>
+                                    <p className="text-slate-500 text-[11px]">
+                                      Avg Completion: <strong>{data.avgProgress}%</strong>
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Legend verticalAlign="top" height={36} />
+                          <Bar
+                            dataKey="reads"
+                            name="Read Frequency (Times Read)"
+                            radius={[6, 6, 0, 0]}
+                            fill="#059669"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Detailed Reading Breakdown Table */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                      Ranked Article Performance Breakdown
+                    </h4>
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
+                          <tr>
+                            <th className="py-2.5 px-3">Rank</th>
+                            <th className="py-2.5 px-3">Article Title</th>
+                            <th className="py-2.5 px-3">Category</th>
+                            <th className="py-2.5 px-3 text-center">Frequency (Reads)</th>
+                            <th className="py-2.5 px-3">Avg Progress</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                          {chartData.map((item, index) => (
+                            <tr key={item.fullTitle} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3 font-mono font-bold text-slate-500">#{index + 1}</td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white max-w-xs truncate" title={item.fullTitle}>
+                                {item.fullTitle}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-semibold">
+                                  {item.category}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                                {item.reads}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div
+                                      className="bg-emerald-600 h-full rounded-full"
+                                      style={{ width: `${item.avgProgress}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[11px] font-mono text-slate-500">{item.avgProgress}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* TAB: MESSAGE INSIGHTS WITH RECHARTS BAR CHART */}
           {activeTab === 'message-insights' && (() => {

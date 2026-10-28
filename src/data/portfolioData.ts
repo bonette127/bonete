@@ -122,6 +122,8 @@ export interface FamilyMemberItem {
   status: 'Active' | 'Invited' | 'Suspended';
   avatar?: string;
   inviteToken?: string;
+  // Admin Authorized Content Access: sections this member is allowed to see
+  allowedSections?: string[];
 }
 
 export interface DailyEventLog {
@@ -167,6 +169,9 @@ export interface FamilyChatMessage {
   };
   reactions?: Record<string, number>;
   channel?: 'general' | 'gospel' | 'tech';
+  // Audio Voice Note Recording
+  voiceNoteUrl?: string;
+  voiceNoteDuration?: string;
 }
 
 export interface PersonalShowcaseConfig {
@@ -456,7 +461,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Jan 2026',
     status: 'Active',
     avatar: 'M',
-    inviteToken: 'fam-token-mugisha-01'
+    inviteToken: 'fam-token-mugisha-01',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-2',
@@ -469,7 +475,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Jan 2026',
     status: 'Active',
     avatar: 'C',
-    inviteToken: 'fam-token-cedric-02'
+    inviteToken: 'fam-token-cedric-02',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-3',
@@ -482,7 +489,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Jan 2026',
     status: 'Active',
     avatar: 'R',
-    inviteToken: 'fam-token-ruth-03'
+    inviteToken: 'fam-token-ruth-03',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-4',
@@ -495,7 +503,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Feb 2026',
     status: 'Active',
     avatar: 'R',
-    inviteToken: 'fam-token-reponce-04'
+    inviteToken: 'fam-token-reponce-04',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-5',
@@ -508,7 +517,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Feb 2026',
     status: 'Active',
     avatar: 'B',
-    inviteToken: 'fam-token-beryse-05'
+    inviteToken: 'fam-token-beryse-05',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-6',
@@ -520,7 +530,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Dec 2025',
     status: 'Active',
     avatar: 'P',
-    inviteToken: 'fam-token-father-06'
+    inviteToken: 'fam-token-father-06',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   },
   {
     id: 'fam-7',
@@ -532,7 +543,8 @@ export const INITIAL_FAMILY_MEMBERS: FamilyMemberItem[] = [
     joinedAt: 'Dec 2025',
     status: 'Active',
     avatar: 'M',
-    inviteToken: 'fam-token-mother-07'
+    inviteToken: 'fam-token-mother-07',
+    allowedSections: ['family-chat', 'about', 'transcripts', 'achievements', 'photos', 'gospel', 'articles', 'agenda']
   }
 ];
 
@@ -787,6 +799,94 @@ export const INITIAL_AGENDA_ENTRIES: AgendaEntry[] = [
       'Support classmates preparing for Level 5 certification.'
     ],
     loggedAt: '2026-10-11T19:00:00Z'
+  }
+];
+
+export interface QuarterlyReportItem {
+  id: string;
+  termTitle: string;
+  termTitleRw: string;
+  academicYear: string;
+  term: 'Term 1' | 'Term 2' | 'Term 3';
+  level: string;
+  levelRw: string;
+  school: string;
+  overallAverage: string;
+  totalMarksObtained: number;
+  maxMarksPossible: number;
+  classPosition: string;
+  classPositionRw: string;
+  conductGrade: string;
+  headmasterRemarks: string;
+  headmasterRemarksRw: string;
+  documentFileName?: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+export const INITIAL_QUARTERLY_REPORTS: QuarterlyReportItem[] = [
+  {
+    id: 'report-l5-term1-2026',
+    termTitle: 'Term 1 Official Academic Bulletin',
+    termTitleRw: 'Raporo y\'Igihembwe cya 1 (Bulletin)',
+    academicYear: '2025 - 2026',
+    term: 'Term 1',
+    level: 'Level 5 Software Development (L5 SOD)',
+    levelRw: 'Urwego rwa 5 mu Gukora Porogaramu (L5 SOD)',
+    school: 'Lycée Saint Alexandre Sauli de Muhura',
+    overallAverage: '94.2%',
+    totalMarksObtained: 565,
+    maxMarksPossible: 600,
+    classPosition: '1st out of 48 Students',
+    classPositionRw: 'Uwa 1 mu banyeshuri 48',
+    conductGrade: 'Exceptional (A / Indashyikirwa)',
+    headmasterRemarks: 'First-rate achievement across software architecture, advanced database management, and mobile engineering. Exceeds TVET competence criteria with exemplary lab dedication.',
+    headmasterRemarksRw: 'Amanota ahanitse cyane muri porogaramu za mudasobwa, imiyoborere y\'amakuru, n\'imyitwarire y\'intangarugero mu ishuri.',
+    documentFileName: 'Term1_Official_Bulletin_L5SOD_Bonette.pdf',
+    uploadedAt: '2026-10-20T10:30:00Z',
+    uploadedBy: 'IBYOYAKOZE Bonette (Admin)'
+  },
+  {
+    id: 'report-l5-term2-2026',
+    termTitle: 'Term 2 Official Academic Bulletin',
+    termTitleRw: 'Raporo y\'Igihembwe cya 2 (Bulletin)',
+    academicYear: '2025 - 2026',
+    term: 'Term 2',
+    level: 'Level 5 Software Development (L5 SOD)',
+    levelRw: 'Urwego rwa 5 mu Gukora Porogaramu (L5 SOD)',
+    school: 'Lycée Saint Alexandre Sauli de Muhura',
+    overallAverage: '93.8%',
+    totalMarksObtained: 563,
+    maxMarksPossible: 600,
+    classPosition: '1st out of 48 Students',
+    classPositionRw: 'Uwa 1 mu banyeshuri 48',
+    conductGrade: 'Exceptional (A / Indashyikirwa)',
+    headmasterRemarks: 'Continues to excel as top student. Developed responsive full-stack capstone and demonstrated peer mentorship in algorithms and software security.',
+    headmasterRemarksRw: 'Akomeje kuba ku isonga mu manota n\'ubumenyi ngiro bwo gukora porogaramu zigezweho. Intangarugero mu mitsindire.',
+    documentFileName: 'Term2_Official_Bulletin_L5SOD_Bonette.pdf',
+    uploadedAt: '2026-10-25T14:15:00Z',
+    uploadedBy: 'IBYOYAKOZE Bonette (Admin)'
+  },
+  {
+    id: 'report-l4-term3-2025',
+    termTitle: 'Annual Promotion Bulletin (Term 3 L4 SOD)',
+    termTitleRw: 'Raporo Isoza Umwaka (Igihembwe cya 3 L4 SOD)',
+    academicYear: '2024 - 2025',
+    term: 'Term 3',
+    level: 'Level 4 Software Development (L4 SOD)',
+    levelRw: 'Urwego rwa 4 mu Gukora Porogaramu (L4 SOD)',
+    school: 'Lycée Saint Alexandre Sauli de Muhura',
+    overallAverage: '91.2%',
+    totalMarksObtained: 547,
+    maxMarksPossible: 600,
+    classPosition: '1st out of 45 Students',
+    classPositionRw: 'Uwa 1 mu banyeshuri 45',
+    conductGrade: 'Exceptional (A / Indashyikirwa)',
+    headmasterRemarks: 'Promoted to Level 5 Software Development with First Class distinction. Commended by the pedagogical council for programming excellence.',
+    headmasterRemarksRw: 'Yimukiye mu cyiciro cya 5 (Level 5) afite amanota yo hejuru cyane. Yahawe icyemezo cy\'ishimwe n\'ubuyobozi bw\'ikigo.',
+    documentFileName: 'Annual_Promotion_Bulletin_L4SOD_Bonette.pdf',
+    uploadedAt: '2025-07-15T09:00:00Z',
+    uploadedBy: 'IBYOYAKOZE Bonette (Admin)'
   }
 ];
 

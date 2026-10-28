@@ -21,13 +21,16 @@ import {
   Award,
   Music,
   Camera,
-  Database,
+  GraduationCap,
+  Languages,
   User,
   MessageSquare,
   FileDown
 } from 'lucide-react';
 import { Theme } from '../hooks/useTheme';
+import { useLanguage } from '../hooks/useLanguage';
 import { PrintingOverlay } from './PrintingOverlay';
+import { GlobalSearch } from './GlobalSearch';
 import {
   getBirthdayInfo,
   StoryArticle,
@@ -71,14 +74,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const birthdayInfo = getBirthdayInfo(new Date());
-
-  // Search State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'articles' | 'tutorials' | 'agenda'>('all');
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+  const { language, t, toggleLanguage } = useLanguage();
 
   // Mobile Drawer State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -127,274 +123,20 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     }, 80);
   };
 
-  // Keyboard shortcut Ctrl+K / Cmd+K to open search & Esc to close
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsSearchOpen(true);
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-          mobileSearchInputRef.current?.focus();
-        }, 50);
-      } else if (e.key === 'Escape') {
-        setIsSearchOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Close search popover on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-        setIsSearchOpen(false);
-      }
-    };
-    if (isSearchOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSearchOpen]);
 
   // Primary Navigation Links for the Side Menu
   const navLinks = [
-    { id: 'about', label: 'About & Roots', icon: User, badge: 'L5 SOD' },
-    { id: 'achievements', label: 'Milestones & Badges', icon: Award },
-    { id: 'agenda', label: 'Daily Agenda', icon: Calendar, badge: agendaEntries.length ? `${agendaEntries.length}` : undefined },
-    { id: 'tutorials', label: 'Tutorials', icon: Video, badge: `${TUTORIALS_DATA.length}` },
-    { id: 'articles', label: 'Articles & Stories', icon: FileText, badge: articles.length ? `${articles.length}` : undefined },
-    { id: 'photos', label: 'Moments Gallery', icon: Camera },
-    { id: 'gospel', label: 'Gospel Sanctuary', icon: Music },
-    { id: 'family-chat', label: 'Family Chat', icon: Users },
-    { id: 'messages', label: 'Guestbook', icon: MessageSquare },
-    { id: 'database', label: 'Database Studio', icon: Database }
+    { id: 'about', label: t('nav_about'), icon: User, badge: 'L5 SOD' },
+    { id: 'transcripts', label: t('nav_transcripts'), icon: GraduationCap, badge: 'NESA' },
+    { id: 'achievements', label: t('nav_achievements'), icon: Award },
+    { id: 'agenda', label: t('nav_agenda'), icon: Calendar, badge: agendaEntries.length ? `${agendaEntries.length}` : undefined },
+    { id: 'tutorials', label: t('nav_tutorials'), icon: Video, badge: `${TUTORIALS_DATA.length}` },
+    { id: 'articles', label: t('nav_articles'), icon: FileText, badge: articles.length ? `${articles.length}` : undefined },
+    { id: 'photos', label: t('nav_photos'), icon: Camera },
+    { id: 'gospel', label: t('nav_gospel'), icon: Music },
+    { id: 'family-chat', label: t('nav_family_chat'), icon: Users },
+    { id: 'messages', label: t('nav_guestbook'), icon: MessageSquare },
   ];
-
-  // Search filtering logic across Articles, Tutorials, and Agenda Entries
-  const cleanQuery = searchQuery.trim().toLowerCase();
-
-  const matchedArticles = cleanQuery
-    ? articles.filter(
-        (a) =>
-          a.title.toLowerCase().includes(cleanQuery) ||
-          a.excerpt.toLowerCase().includes(cleanQuery) ||
-          a.category.toLowerCase().includes(cleanQuery) ||
-          a.content.toLowerCase().includes(cleanQuery)
-      )
-    : [];
-
-  const matchedTutorials = cleanQuery
-    ? TUTORIALS_DATA.filter(
-        (t) =>
-          t.title.toLowerCase().includes(cleanQuery) ||
-          t.summary.toLowerCase().includes(cleanQuery) ||
-          t.topic.toLowerCase().includes(cleanQuery) ||
-          t.keyTakeaways.some((k) => k.toLowerCase().includes(cleanQuery))
-      )
-    : [];
-
-  const matchedAgenda = cleanQuery
-    ? agendaEntries.filter(
-        (entry) =>
-          entry.date.toLowerCase().includes(cleanQuery) ||
-          entry.dateFormatted.toLowerCase().includes(cleanQuery) ||
-          entry.daySummary.toLowerCase().includes(cleanQuery) ||
-          (entry.gospelReflection && entry.gospelReflection.toLowerCase().includes(cleanQuery)) ||
-          entry.routineTasks.some(
-            (task) =>
-              task.title.toLowerCase().includes(cleanQuery) ||
-              task.category.toLowerCase().includes(cleanQuery)
-          ) ||
-          entry.activitiesPerformed.some((act) => act.toLowerCase().includes(cleanQuery)) ||
-          entry.techSkillsPracticed.some((skill) => skill.toLowerCase().includes(cleanQuery))
-      )
-    : [];
-
-  const totalResults = matchedArticles.length + matchedTutorials.length + matchedAgenda.length;
-
-  const handleSearchResultClick = (type: 'articles' | 'tutorials' | 'agenda', targetId?: string, title?: string) => {
-    onSelectTab(type);
-    if (type === 'articles' && title && onSelectArticleTitle) {
-      onSelectArticleTitle(title);
-    } else if (type === 'tutorials' && targetId && onSelectTutorial) {
-      onSelectTutorial(targetId);
-    } else if (type === 'agenda' && targetId && onSelectAgendaEntry) {
-      onSelectAgendaEntry(targetId);
-    }
-    setIsSearchOpen(false);
-    setSearchQuery('');
-    setIsMobileMenuOpen(false);
-  };
-
-  // Reusable search dropdown list component
-  const renderSearchResults = () => (
-    <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 max-w-sm sm:max-w-md w-full">
-      {/* Search Header & Filter Tabs */}
-      <div className="p-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs overflow-x-auto no-scrollbar">
-          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">Filter:</span>
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
-              activeFilter === 'all'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            All ({totalResults})
-          </button>
-          <button
-            onClick={() => setActiveFilter('articles')}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
-              activeFilter === 'articles'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            Articles ({matchedArticles.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('tutorials')}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
-              activeFilter === 'tutorials'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            Tutorials ({matchedTutorials.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('agenda')}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer shrink-0 ${
-              activeFilter === 'agenda'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            Agenda ({matchedAgenda.length})
-          </button>
-        </div>
-
-        <button
-          onClick={() => setIsSearchOpen(false)}
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer shrink-0"
-          title="Close Search (Esc)"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Results List */}
-      <div className="max-h-72 overflow-y-auto p-2 space-y-1">
-        {!cleanQuery ? (
-          <div className="p-4 text-center text-slate-400 space-y-1.5">
-            <Sparkles className="w-5 h-5 mx-auto text-emerald-500 opacity-80" />
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-              Instant Search Across Portfolio
-            </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Type &ldquo;React&rdquo;, &ldquo;Muhura&rdquo;, &ldquo;Coding&rdquo;, &ldquo;Prayer&rdquo;, or &ldquo;Agenda&rdquo;
-            </p>
-          </div>
-        ) : totalResults === 0 ? (
-          <div className="p-4 text-center text-slate-400 text-xs">
-            No matching articles, tutorials, or agenda entries found for &ldquo;{searchQuery}&rdquo;.
-          </div>
-        ) : (
-          <>
-            {/* Articles */}
-            {(activeFilter === 'all' || activeFilter === 'articles') && matchedArticles.length > 0 && (
-              <div className="space-y-1">
-                <p className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Articles ({matchedArticles.length})
-                </p>
-                {matchedArticles.map((article) => (
-                  <button
-                    key={article.id}
-                    onClick={() => handleSearchResultClick('articles', article.id, article.title)}
-                    className="w-full text-left p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-start gap-2 group cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600">
-                          {article.title}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 shrink-0">{article.readTime}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {article.excerpt}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Tutorials */}
-            {(activeFilter === 'all' || activeFilter === 'tutorials') && matchedTutorials.length > 0 && (
-              <div className="space-y-1 pt-1">
-                <p className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Tutorials ({matchedTutorials.length})
-                </p>
-                {matchedTutorials.map((tut) => (
-                  <button
-                    key={tut.id}
-                    onClick={() => handleSearchResultClick('tutorials', tut.id)}
-                    className="w-full text-left p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-start gap-2 group cursor-pointer"
-                  >
-                    <Video className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600">
-                          {tut.title}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 shrink-0">{tut.duration}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {tut.summary}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Agenda */}
-            {(activeFilter === 'all' || activeFilter === 'agenda') && matchedAgenda.length > 0 && (
-              <div className="space-y-1 pt-1">
-                <p className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Agenda Logs ({matchedAgenda.length})
-                </p>
-                {matchedAgenda.map((entry) => (
-                  <button
-                    key={entry.id}
-                    onClick={() => handleSearchResultClick('agenda', entry.id)}
-                    className="w-full text-left p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-start gap-2 group cursor-pointer"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600">
-                          {entry.dateFormatted || entry.date}
-                        </h4>
-                        <span className="text-[10px] text-slate-500 shrink-0">{entry.mood}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {entry.daySummary}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -436,42 +178,16 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         </div>
 
         {/* Global Search Bar (Side layout) */}
-        <div ref={searchContainerRef} className="p-3 border-b border-slate-100 dark:border-slate-800 relative">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onFocus={() => setIsSearchOpen(true)}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchOpen(true);
-              }}
-              placeholder="Search portfolio..."
-              className="w-full pl-8 pr-12 py-1.5 text-xs bg-slate-100 hover:bg-slate-200/70 focus:bg-white dark:bg-slate-800 dark:hover:bg-slate-750 dark:focus:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl border border-transparent focus:border-emerald-500 transition-all outline-hidden shadow-inner"
-            />
-            <div className="absolute right-2 top-2 flex items-center gap-1">
-              {searchQuery ? (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setIsSearchOpen(false);
-                  }}
-                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              ) : (
-                <kbd className="inline-flex items-center gap-0.5 px-1 py-0.2 text-[9px] font-mono text-slate-400 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded">
-                  <Command className="w-2.5 h-2.5" />K
-                </kbd>
-              )}
-            </div>
-          </div>
-
-          {/* Search Dropdown Results Popover */}
-          {isSearchOpen && renderSearchResults()}
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+          <GlobalSearch
+            articles={articles}
+            agendaEntries={agendaEntries}
+            onSelectTab={onSelectTab}
+            onSelectArticleTitle={onSelectArticleTitle}
+            onSelectTutorial={onSelectTutorial}
+            onSelectAgendaEntry={onSelectAgendaEntry}
+            variant="desktop"
+          />
         </div>
 
         {/* Primary Action Button: Print CV / Export PDF */}
@@ -482,7 +198,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             title="Export or Print formatted CV as PDF"
           >
             <Printer className="w-4 h-4 text-emerald-100 group-hover:scale-110 transition-transform" />
-            <span>Print CV / PDF Export</span>
+            <span>{t('print_cv')}</span>
           </button>
         </div>
 
@@ -532,7 +248,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           })}
         </div>
 
-        {/* Sidebar Footer Controls: Theme, Portal, and Message */}
+        {/* Sidebar Footer Controls: Theme, Language, Portal, and Message */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-2">
           <div className="flex items-center gap-1.5">
             {/* Admin Portal Button */}
@@ -548,14 +264,25 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               {isAdminLoggedIn ? (
                 <>
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="truncate">Admin Suite</span>
+                  <span className="truncate">{t('admin_suite')}</span>
                 </>
               ) : (
                 <>
                   <Lock className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span className="truncate">Portal Login</span>
+                  <span className="truncate">{t('portal_login')}</span>
                 </>
               )}
+            </button>
+
+            {/* Language Switcher (EN / RW) */}
+            <button
+              onClick={toggleLanguage}
+              className="px-2 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-200/80 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+              aria-label={`Switch language to ${language === 'en' ? 'Kinyarwanda' : 'English'}`}
+              title={`Switch language: Currently ${language === 'en' ? 'English (EN)' : 'Kinyarwanda (RW)'}`}
+            >
+              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono text-[11px] font-bold">{language === 'en' ? 'RW' : 'EN'}</span>
             </button>
 
             {/* Dark/Light Mode Switcher */}
@@ -578,7 +305,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             onClick={onOpenMessageModal}
             className="w-full py-1.5 text-xs font-semibold text-center text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
           >
-            Leave a Message
+            {t('leave_message')}
           </button>
         </div>
       </aside>
@@ -608,7 +335,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             </div>
           </button>
 
-          {/* Mobile Controls: Print CV, Theme, Menu Toggle */}
+          {/* Mobile Controls: Print CV, Language, Theme, Menu Toggle */}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Mobile Print CV Button */}
             <button
@@ -617,15 +344,23 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               title="Print CV / Export PDF"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Print CV</span>
+              <span className="hidden sm:inline">{language === 'rw' ? 'Gucapa' : 'Print CV'}</span>
+            </button>
+
+            {/* Mobile Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              className="px-2 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer"
+              title={`Switch language: Currently ${language === 'en' ? 'English (EN)' : 'Kinyarwanda (RW)'}`}
+              aria-label="Toggle Language"
+            >
+              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-mono text-[11px]">{language === 'en' ? 'RW' : 'EN'}</span>
             </button>
 
             {/* Mobile Search Toggle */}
             <button
-              onClick={() => {
-                setIsMobileMenuOpen(true);
-                setTimeout(() => mobileSearchInputRef.current?.focus(), 150);
-              }}
+              onClick={() => setIsMobileMenuOpen(true)}
               className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               aria-label="Search"
               title="Search portfolio"
@@ -687,33 +422,18 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 </button>
               </div>
 
-              {/* Mobile Drawer Search Input */}
-              <div className="p-3 border-b border-slate-100 dark:border-slate-800 relative">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                  <input
-                    ref={mobileSearchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onFocus={() => setIsSearchOpen(true)}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setIsSearchOpen(true);
-                    }}
-                    placeholder="Search articles, agenda, tutorials..."
-                    className="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl border border-transparent focus:border-emerald-500 outline-hidden"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-2 text-slate-400 p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                {isSearchOpen && renderSearchResults()}
+              {/* Mobile Drawer Global Search Input */}
+              <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+                <GlobalSearch
+                  articles={articles}
+                  agendaEntries={agendaEntries}
+                  onSelectTab={onSelectTab}
+                  onSelectArticleTitle={onSelectArticleTitle}
+                  onSelectTutorial={onSelectTutorial}
+                  onSelectAgendaEntry={onSelectAgendaEntry}
+                  variant="mobile"
+                  onCloseMobile={() => setIsMobileMenuOpen(false)}
+                />
               </div>
 
               {/* Mobile Print CV Button in Drawer */}
@@ -726,7 +446,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Print CV / Export PDF</span>
+                  <span>{t('print_cv')}</span>
                 </button>
               </div>
 
@@ -760,6 +480,15 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
               {/* Drawer Footer Actions */}
               <div className="p-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                {/* Language Switcher in Drawer */}
+                <button
+                  onClick={toggleLanguage}
+                  className="w-full py-2 text-xs font-bold text-center text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-2 cursor-pointer border border-slate-200 dark:border-slate-700"
+                >
+                  <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{language === 'en' ? 'Hindura Ururimi: Kinyarwanda' : 'Switch Language: English'}</span>
+                </button>
+
                 <button
                   onClick={() => {
                     onOpenAdmin();
@@ -768,7 +497,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   className="w-full py-2 text-xs font-bold text-center text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5" />
-                  <span>{isAdminLoggedIn ? 'Open Admin Suite' : 'Portal Sign-in'}</span>
+                  <span>{isAdminLoggedIn ? t('admin_suite') : t('portal_login')}</span>
                 </button>
 
                 <button
@@ -778,7 +507,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   }}
                   className="w-full py-2 text-xs font-bold text-center text-white bg-slate-900 dark:bg-emerald-600 rounded-xl"
                 >
-                  Send Guestbook Message
+                  {t('leave_message')}
                 </button>
               </div>
             </div>
@@ -797,7 +526,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           aria-label="Print CV or export portfolio as PDF"
         >
           <Printer className="w-4 h-4 text-emerald-400 group-hover:text-white dark:text-white transition-colors" />
-          <span className="font-bold tracking-wide">Print CV</span>
+          <span className="font-bold tracking-wide">{language === 'rw' ? 'Gucapa CV' : 'Print CV'}</span>
         </button>
       </div>
 
